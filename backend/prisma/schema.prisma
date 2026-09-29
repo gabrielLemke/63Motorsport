@@ -1,0 +1,46 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Quote {
+  id        String   @id @default(uuid())
+  name      String
+  phone     String
+  email     String?
+  vehicle   String
+  service   String
+  message   String?
+  status    String   @default("PENDING")
+  ipAddress String?  @map("ip_address")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("quotes")
+}
+
+model DynoProject {
+  id             String   @id @default(uuid())
+  slug           String   @unique
+  title          String
+  vehicle        String
+  engine         String
+  stage          String
+  originalHp     Int      @map("original_hp")
+  originalTorque Float    @map("original_torque")
+  tunedHp        Int      @map("tuned_hp")
+  tunedTorque    Float    @map("tuned_torque")
+  peakRpm        Int      @map("peak_rpm")
+  boostPressure  Float    @map("boost_pressure")
+  fuel           String
+  mods           String
+  isFeatured     Boolean  @default(true) @map("is_featured")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("dyno_projects")
+}

@@ -1,0 +1,66 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: motorsport_prod_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER:-motorsport_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-motorsport_secure_password_2026}
+      POSTGRES_DB: ${DB_NAME:-motorsport_db}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - prod_postgres_data:/var/lib/postgresql/data
+    networks:
+      - motorsport_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-motorsport_user} -d ${DB_NAME:-motorsport_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: motorsport_prod_backend
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3333
+      DATABASE_URL: "postgresql://${DB_USER:-motorsport_user}:${DB_PASSWORD:-motorsport_secure_password_2026}@postgres:5432/${DB_NAME:-motorsport_db}?schema=public"
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost,http://localhost:80}
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-100}
+      RATE_LIMIT_TIME_WINDOW: ${RATE_LIMIT_TIME_WINDOW:-"1 minute"}
+      WHATSAPP_PHONE: ${WHATSAPP_PHONE:-5547999999999}
+    networks:
+      - motorsport_network
+    ports:
+      - "3333:3333"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3333}
+        VITE_WHATSAPP_PHONE: ${VITE_WHATSAPP_PHONE:-5547999999999}
+    container_name: motorsport_prod_frontend
+    restart: always
+    depends_on:
+      - backend
+    networks:
+      - motorsport_network
+    ports:
+      - "80:80"
+
+networks:
+  motorsport_network:
+    driver: bridge
+
+volumes:
+  prod_postgres_data:
+    driver: local
