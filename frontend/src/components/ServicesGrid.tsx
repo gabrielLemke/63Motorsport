@@ -35,10 +35,10 @@ export const ServicesGrid: React.FC<ServicesGridProps> = ({ onSelectService }) =
   ];
 
   return (
-    <section id="servicos" className="py-12 sm:py-20 max-w-7xl mx-auto px-4 sm:px-6 border-b border-zinc-800">
+    <section id="servicos" className="py-12 sm:py-20 max-w-7xl mx-auto px-4 sm:px-6 border-b border-zinc-800/80 w-full max-w-full min-w-0 overflow-hidden">
       <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 sm:mb-12">
         <div>
-          <span className="text-[11px] sm:text-xs font-mono text-red-500 uppercase tracking-widest font-semibold">
+          <span className="text-[11px] sm:text-xs text-red-500 uppercase tracking-widest font-bold">
             O Que Fazemos
           </span>
           <h2 className="text-2xl sm:text-4xl font-black text-white uppercase font-racing mt-1">
@@ -50,25 +50,25 @@ export const ServicesGrid: React.FC<ServicesGridProps> = ({ onSelectService }) =
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 w-full min-w-0">
         {services.map((item) => {
           const Icon = item.icon;
           return (
             <div
               key={item.id}
               onClick={() => onSelectService(item.id)}
-              className="bg-zinc-900/60 border border-zinc-800 hover:border-zinc-600 rounded-xl p-5 sm:p-6 transition-all duration-300 group hover:-translate-y-1 cursor-pointer flex flex-col justify-between"
+              className="bg-zinc-900/60 border border-zinc-800 hover:border-zinc-600 rounded-xl p-5 sm:p-6 transition-all duration-300 group hover:-translate-y-1 cursor-pointer flex flex-col justify-between active:scale-[0.99] min-w-0"
             >
               <div>
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-zinc-800 flex items-center justify-center text-white mb-4 sm:mb-5 border border-zinc-700 group-hover:border-red-500 transition-colors">
+                <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-zinc-800 flex items-center justify-center text-white mb-4 sm:mb-5 border border-zinc-700 group-hover:border-red-500 transition-colors">
                   <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-zinc-300 group-hover:text-red-500 transition-colors" />
                 </div>
-                <h3 className="text-base sm:text-lg font-bold text-white mb-2">{item.title}</h3>
+                <h3 className="text-base sm:text-lg font-bold text-white mb-2 font-racing">{item.title}</h3>
                 <p className="text-zinc-400 text-xs sm:text-sm leading-relaxed mb-4 sm:mb-6">
                   {item.desc}
                 </p>
               </div>
-              <span className="text-[11px] sm:text-xs font-mono text-red-400 font-semibold group-hover:underline inline-flex items-center gap-1">
+              <span className="text-xs text-red-400 font-semibold group-hover:text-red-300 inline-flex items-center gap-1.5 transition-colors">
                 Solicitar este serviço &rarr;
               </span>
             </div>

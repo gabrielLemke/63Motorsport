@@ -23,9 +23,9 @@ export default {
         }
       },
       fontFamily: {
-        sans: ['"Space Grotesk"', 'sans-serif'],
-        racing: ['"Montserrat"', 'sans-serif'],
-        mono: ['"JetBrains Mono"', 'monospace']
+        sans: ['"Inter"', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'sans-serif'],
+        racing: ['"Montserrat"', '"Inter"', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace']
       }
     },
   },
