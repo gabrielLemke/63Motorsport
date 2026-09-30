@@ -6,6 +6,7 @@ import { ServicesGrid } from './components/ServicesGrid';
 import { VisualIdentityGuide } from './components/VisualIdentityGuide';
 import { Footer } from './components/Footer';
 import { QuoteModal } from './components/QuoteModal';
+import { FloatingWhatsApp } from './components/FloatingWhatsApp';
 import { DynoProject, ServiceType } from './types';
 import { fetchDynoProjects } from './services/api';
 
@@ -30,16 +31,20 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#090A0D] text-slate-100 flex flex-col">
+    <div className="min-h-screen bg-[#090A0D] text-slate-100 flex flex-col overflow-x-hidden w-full max-w-full relative">
       <AnnouncementBar />
       <Navbar onOpenQuote={() => handleOpenQuote()} />
-      <main className="flex-1">
+      <main className="flex-1 w-full max-w-full overflow-x-hidden">
         <Hero onOpenQuote={() => handleOpenQuote()} projects={projects} />
         <ServicesGrid onSelectService={(service) => handleOpenQuote(service)} />
         <VisualIdentityGuide />
       </main>
       <Footer onOpenQuote={() => handleOpenQuote()} />
 
+      {/* Botão Flutuante de WhatsApp para Conversão Rápida no Celular */}
+      <FloatingWhatsApp onOpenQuote={() => handleOpenQuote()} />
+
+      {/* Modal de Orçamento com Rolagem Segura para Mobile */}
       <QuoteModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
