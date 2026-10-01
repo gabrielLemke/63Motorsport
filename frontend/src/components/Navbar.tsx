@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { MessageSquare, Menu, X, ChevronRight } from 'lucide-react';
+import { MessageSquare, Menu, X, ChevronRight, Lock } from 'lucide-react';
 
 interface NavbarProps {
   onOpenQuote: () => void;
+  onOpenAdmin?: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ onOpenQuote }) => {
+export const Navbar: React.FC<NavbarProps> = ({ onOpenQuote, onOpenAdmin }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleNavClick = () => {
@@ -33,7 +34,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenQuote }) => {
         </a>
 
         {/* Links Desktop */}
-        <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-zinc-300">
+        <nav className="hidden md:flex items-center gap-6 lg:gap-8 text-sm font-medium text-zinc-300">
           <a href="#servicos" className="hover:text-white transition-colors">Serviços</a>
           <a href="#dinamometro" className="hover:text-white transition-colors">Dinamômetro</a>
           <a href="#projetos" className="hover:text-white transition-colors">Projetos</a>
@@ -43,6 +44,16 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenQuote }) => {
           >
             Guia Visual
           </a>
+          {onOpenAdmin && (
+            <button
+              onClick={onOpenAdmin}
+              className="text-zinc-400 hover:text-white text-xs font-mono uppercase flex items-center gap-1.5 px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 border border-white/10 transition-colors"
+              title="Acessar Central de Gestão da 63 Motorsport"
+            >
+              <Lock className="w-3 h-3 text-red-500" />
+              <span>Painel Admin</span>
+            </button>
+          )}
         </nav>
 
         {/* Ações: CTA WhatsApp & Menu Mobile */}
@@ -102,6 +113,22 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenQuote }) => {
             <span>&gt; Manual de Identidade Visual</span>
             <ChevronRight className="w-4 h-4 text-red-500/50" />
           </a>
+
+          {onOpenAdmin && (
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false);
+                onOpenAdmin();
+              }}
+              className="w-full flex items-center justify-between text-zinc-400 hover:text-white py-2.5 border-b border-zinc-800/70 text-left cursor-pointer"
+            >
+              <span className="flex items-center gap-2">
+                <Lock className="w-3.5 h-3.5 text-red-500" />
+                <span>&gt; Área Administrativa (Login)</span>
+              </span>
+              <ChevronRight className="w-4 h-4 text-zinc-600" />
+            </button>
+          )}
 
           <div className="pt-3">
             <button

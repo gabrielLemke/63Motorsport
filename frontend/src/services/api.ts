@@ -18,9 +18,13 @@ export async function submitQuote(input: QuoteInput): Promise<QuoteResponse> {
       throw new Error(errorData.message || 'Erro ao registrar orçamento na API');
     }
 
-    return await res.json();
+    const data = await res.json();
+    saveQuoteToLocalStore(input, data.data?.quoteId);
+    return data;
   } catch (err) {
     console.warn('API backend indisponível ou offline. Gerando redirecionamento direto:', err);
+
+    saveQuoteToLocalStore(input, null);
 
     // Fallback gracioso: gera o link do WhatsApp no cliente para não perder a conversão do lead
     const message = encodeURIComponent(
@@ -41,6 +45,33 @@ export async function submitQuote(input: QuoteInput): Promise<QuoteResponse> {
         serviceLabel: input.service
       }
     };
+  }
+}
+
+function saveQuoteToLocalStore(input: QuoteInput, serverId: string | null) {
+  try {
+    const STORE_KEY = '63motorsport_admin_local_quotes_v1';
+    const raw = localStorage.getItem(STORE_KEY);
+    const list = raw ? JSON.parse(raw) : [];
+    
+    const newQuote = {
+      id: serverId || `lead-local-${Date.now()}`,
+      name: input.name,
+      phone: input.phone,
+      email: input.email || '',
+      vehicle: input.vehicle,
+      service: input.service,
+      serviceLabel: input.service.replace(/_/g, ' '),
+      message: input.message || '',
+      status: 'PENDING',
+      estimatedValue: 3500,
+      createdAt: new Date().toISOString()
+    };
+    
+    list.unshift(newQuote);
+    localStorage.setItem(STORE_KEY, JSON.stringify(list));
+  } catch (e) {
+    console.warn('Falha ao salvar no store local:', e);
   }
 }
 

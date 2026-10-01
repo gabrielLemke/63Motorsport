@@ -1,11 +1,12 @@
 import React from 'react';
-import { Gauge, MessageSquare } from 'lucide-react';
+import { Gauge, MessageSquare, Lock } from 'lucide-react';
 
 interface FooterProps {
   onOpenQuote: () => void;
+  onOpenAdmin?: () => void;
 }
 
-export const Footer: React.FC<FooterProps> = ({ onOpenQuote }) => {
+export const Footer: React.FC<FooterProps> = ({ onOpenQuote, onOpenAdmin }) => {
   return (
     <footer id="contato" className="py-12 sm:py-16 bg-[#07080a] border-t border-zinc-800/80 w-full max-w-full min-w-0 overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 text-center space-y-5 sm:space-y-6">
@@ -38,12 +39,24 @@ export const Footer: React.FC<FooterProps> = ({ onOpenQuote }) => {
           <div>
             © 2026 63 MOTORSPORT. TODOS OS DIREITOS RESERVADOS.
           </div>
-          <div className="flex flex-wrap justify-center gap-3 sm:gap-6 text-zinc-600 font-medium">
+          <div className="flex flex-wrap justify-center items-center gap-3 sm:gap-6 text-zinc-600 font-medium">
             <span>PREPARAÇÃO DE MOTORES</span>
             <span>•</span>
             <span>DINAMÔMETRO</span>
             <span>•</span>
             <span>REMAP DE ECU</span>
+            {onOpenAdmin && (
+              <>
+                <span>•</span>
+                <button
+                  onClick={onOpenAdmin}
+                  className="text-zinc-500 hover:text-red-400 inline-flex items-center gap-1 transition-colors cursor-pointer"
+                >
+                  <Lock className="w-3 h-3 text-red-500" />
+                  <span>Área Restrita / Painel 63</span>
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -51,3 +64,4 @@ export const Footer: React.FC<FooterProps> = ({ onOpenQuote }) => {
     </footer>
   );
 };
+
