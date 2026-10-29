@@ -1,4 +1,18 @@
-export type OrderStatus = 'DRAFT' | 'IN_PROGRESS' | 'WAITING_PARTS' | 'COMPLETED' | 'DELIVERED' | 'CANCELLED';
+export type OrderStatus =
+  | 'DRAFT'
+  | 'IN_PROGRESS'
+  | 'WAITING_PARTS'
+  | 'COMPLETED'
+  | 'DELIVERED'
+  | 'CANCELLED';
+
+export type OperationalPhase =
+  | 'CHECKIN'
+  | 'DIAGNOSIS'
+  | 'DISASSEMBLY'
+  | 'TUNING'
+  | 'QA_CHECKOUT'
+  | 'READY';
 
 export interface OrderItem {
   id: string;
@@ -7,14 +21,21 @@ export interface OrderItem {
   quantity: number;
   unitPrice: number;
   totalPrice: number;
+  executed?: boolean;
+  operator?: string;
 }
 
 export interface ServiceOrder {
   id: string;
   osNumber: string;
   status: OrderStatus;
+  operationalPhase?: OperationalPhase;
+  leadOperator?: string;
+  boxRamp?: string;
   createdAt: string;
   updatedAt: string;
+  maintenanceStartedAt?: string;
+  maintenanceCompletedAt?: string;
   deliveryDate?: string;
   client: {
     name: string;
@@ -33,6 +54,7 @@ export interface ServiceOrder {
     fuel?: string;
     color?: string;
     engine?: string;
+    chassis?: string;
     currentSetup?: string;
   };
   dynoTelemetry?: {
@@ -43,6 +65,9 @@ export interface ServiceOrder {
     boostPressure?: number;
     tuner?: string;
   };
+  checklist?: any;
+  evidences?: any[];
+  timeline?: any[];
   items: OrderItem[];
   subtotalServices: number;
   subtotalParts: number;
@@ -54,14 +79,18 @@ export interface ServiceOrder {
   quoteId?: string;
 }
 
-// Store resiliente com dados iniciais realistas de alta performance
 let memoryOrders: ServiceOrder[] = [
   {
     id: 'os-001',
     osNumber: 'OS-2026-0042',
     status: 'COMPLETED',
+    operationalPhase: 'READY',
+    leadOperator: 'Gabriel Lemke // Chefe de Calibração',
+    boxRamp: 'Box 03 - Dinamômetro Servitec 4x4',
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(),
     updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString(),
+    maintenanceStartedAt: new Date(Date.now() - 1000 * 60 * 60 * 47).toISOString(),
+    maintenanceCompletedAt: new Date(Date.now() - 1000 * 60 * 60 * 14).toISOString(),
     deliveryDate: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString(),
     client: {
       name: 'Rodrigo Alcantara',
@@ -80,7 +109,8 @@ let memoryOrders: ServiceOrder[] = [
       fuel: 'Gasolina Podium',
       color: 'Branco Puro',
       engine: '2.0 TSI (EA888 Gen 3 MQB)',
-      currentSetup: 'Intake R600 RacingLine, Downpipe 3" Inox 304'
+      chassis: '9BWAA45G8JP018492',
+      currentSetup: 'Intake R600 RacingLine, Downpipe 3" Inox 304, Velas NGK Grau 9'
     },
     dynoTelemetry: {
       beforeHp: 220,
@@ -97,7 +127,9 @@ let memoryOrders: ServiceOrder[] = [
         description: 'Mapeamento Custom de ECU Stage 2 em Dinamômetro 4x4 (Mapa Duplo Podium/Comum)',
         quantity: 1,
         unitPrice: 3200,
-        totalPrice: 3200
+        totalPrice: 3200,
+        executed: true,
+        operator: 'Gabriel Lemke'
       },
       {
         id: 'item-2',
@@ -105,7 +137,9 @@ let memoryOrders: ServiceOrder[] = [
         description: 'Calibração de Câmbio DSG DQ250 (Aumento de pressão de embreagem e shift points)',
         quantity: 1,
         unitPrice: 1500,
-        totalPrice: 1500
+        totalPrice: 1500,
+        executed: true,
+        operator: 'Gabriel Lemke'
       },
       {
         id: 'item-3',
@@ -113,7 +147,9 @@ let memoryOrders: ServiceOrder[] = [
         description: 'Jogo de Velas Iridium NGK Racing R7437-9 (Grau Frio 9)',
         quantity: 1,
         unitPrice: 650,
-        totalPrice: 650
+        totalPrice: 650,
+        executed: true,
+        operator: 'Lucas M.'
       },
       {
         id: 'item-4',
@@ -121,7 +157,9 @@ let memoryOrders: ServiceOrder[] = [
         description: 'Sessão de Aferição e Datalog no Dinamômetro Servitec 4x4 (6 passagens com log OBD-II)',
         quantity: 1,
         unitPrice: 600,
-        totalPrice: 600
+        totalPrice: 600,
+        executed: true,
+        operator: 'Gabriel Lemke'
       }
     ],
     subtotalServices: 5300,
@@ -139,9 +177,13 @@ let memoryOrders: ServiceOrder[] = [
     id: 'os-002',
     osNumber: 'OS-2026-0043',
     status: 'IN_PROGRESS',
+    operationalPhase: 'TUNING',
+    leadOperator: 'Lucas M. // Mecânico Chefe',
+    boxRamp: 'Rampa 02 - Preparação Turbo & Motor',
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
     updatedAt: new Date().toISOString(),
-    deliveryDate: new Date(Date.now() + 1000 * 60 * 60 * 72).toISOString(),
+    maintenanceStartedAt: new Date(Date.now() - 1000 * 60 * 60 * 22).toISOString(),
+    deliveryDate: new Date(Date.now() + 1000 * 60 * 60 * 48).toISOString(),
     client: {
       name: 'Eduardo Silveira',
       document: '812.334.909-15',
@@ -159,7 +201,8 @@ let memoryOrders: ServiceOrder[] = [
       fuel: 'Etanol E85 / Gasolina Podium',
       color: 'Hockenheim Silver',
       engine: '3.0 Twin-Turbo (S55)',
-      currentSetup: 'Downpipes sem restrição, Charge Pipes de alumínio'
+      chassis: 'WBS2U7C09L7E90063',
+      currentSetup: 'Downpipes Inox, Charge Pipes Alumínio, Turbinas Híbridas Pure Stage 2'
     },
     dynoTelemetry: {
       beforeHp: 410,
@@ -176,7 +219,9 @@ let memoryOrders: ServiceOrder[] = [
         description: 'Kit de Turbinas Híbridas Pure Stage 2 High-Flow (Twin Turbo S55)',
         quantity: 1,
         unitPrice: 17500,
-        totalPrice: 17500
+        totalPrice: 17500,
+        executed: true,
+        operator: 'Lucas M.'
       },
       {
         id: 'item-202',
@@ -184,7 +229,9 @@ let memoryOrders: ServiceOrder[] = [
         description: 'Mão de Obra Especializada para Montagem de Turbocompressores e Linhas de Óleo/Água',
         quantity: 1,
         unitPrice: 3800,
-        totalPrice: 3800
+        totalPrice: 3800,
+        executed: true,
+        operator: 'Lucas M.'
       },
       {
         id: 'item-203',
@@ -192,7 +239,9 @@ let memoryOrders: ServiceOrder[] = [
         description: 'Velas de Ignição de Alto Desempenho BMW M8 Gapped 0.022"',
         quantity: 1,
         unitPrice: 950,
-        totalPrice: 950
+        totalPrice: 950,
+        executed: true,
+        operator: 'Lucas M.'
       },
       {
         id: 'item-204',
@@ -200,7 +249,9 @@ let memoryOrders: ServiceOrder[] = [
         description: 'Desenvolvimento de Calibração Customizada Bootmod3 / MHD com sensor Flex Fuel',
         quantity: 1,
         unitPrice: 4200,
-        totalPrice: 4200
+        totalPrice: 4200,
+        executed: false,
+        operator: 'Gabriel Lemke'
       }
     ],
     subtotalServices: 8000,
@@ -216,7 +267,7 @@ let memoryOrders: ServiceOrder[] = [
   }
 ];
 
-let nextOrderSeq = 44;
+let nextOrderSeq = 45;
 
 export class ServiceOrderService {
   static async listOrders(filter?: { status?: string; search?: string }): Promise<ServiceOrder[]> {
@@ -238,7 +289,6 @@ export class ServiceOrderService {
       );
     }
 
-    // Ordena mais recentes primeiro
     return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
@@ -251,8 +301,8 @@ export class ServiceOrderService {
     const year = new Date().getFullYear();
     const osNumber = `OS-${year}-${String(nextOrderSeq++).padStart(4, '0')}`;
     const id = `os-${Date.now()}`;
+    const nowIso = new Date().toISOString();
 
-    // Recalcula totais com precisão
     const items = data.items || [];
     const subtotalServices = items
       .filter((i) => i.type === 'SERVICE')
@@ -267,8 +317,13 @@ export class ServiceOrderService {
       id,
       osNumber,
       status: data.status || 'IN_PROGRESS',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      operationalPhase: data.operationalPhase || 'CHECKIN',
+      leadOperator: data.leadOperator || 'Lucas M. // Operador Chefe',
+      boxRamp: data.boxRamp || 'Rampa 01 - Recepção & Diagnóstico',
+      createdAt: nowIso,
+      updatedAt: nowIso,
+      maintenanceStartedAt: data.maintenanceStartedAt || nowIso,
+      maintenanceCompletedAt: data.maintenanceCompletedAt,
       deliveryDate: data.deliveryDate,
       client: {
         name: data.client?.name || 'Cliente Sem Nome',
@@ -287,9 +342,22 @@ export class ServiceOrderService {
         fuel: data.vehicle?.fuel || 'Gasolina Podium',
         color: data.vehicle?.color || '',
         engine: data.vehicle?.engine || '',
+        chassis: data.vehicle?.chassis || '',
         currentSetup: data.vehicle?.currentSetup || ''
       },
       dynoTelemetry: data.dynoTelemetry,
+      checklist: data.checklist,
+      evidences: data.evidences || [],
+      timeline: data.timeline || [
+        {
+          id: `log-${Date.now()}`,
+          stage: 'CHECKIN',
+          title: 'Recepção do Veículo & Abertura da Manutenção',
+          description: `Entrada do veículo ${data.vehicle?.model || ''} (${data.vehicle?.plate || 'S/ Placa'}) no pátio da 63 Motorsport.`,
+          operator: data.leadOperator || 'Lucas M.',
+          timestamp: nowIso
+        }
+      ],
       items,
       subtotalServices,
       subtotalParts,
@@ -334,6 +402,9 @@ export class ServiceOrderService {
         ...existing.vehicle,
         ...data.vehicle
       },
+      checklist: data.checklist !== undefined ? data.checklist : existing.checklist,
+      evidences: data.evidences !== undefined ? data.evidences : existing.evidences,
+      timeline: data.timeline !== undefined ? data.timeline : existing.timeline,
       items,
       subtotalServices,
       subtotalParts,

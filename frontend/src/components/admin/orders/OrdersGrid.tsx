@@ -11,30 +11,41 @@ import {
   RefreshCw,
   Clock,
   CheckCircle,
-  Package
+  Package,
+  ClipboardCheck,
+  Camera,
+  History
 } from 'lucide-react';
 import { ServiceOrder, OrderStatus } from '../../../types/serviceOrder';
 import { serviceOrderApi } from '../../../services/serviceOrderApi';
 import { OrderPdfView } from './OrderPdfView';
 import { OrderFormModal } from './OrderFormModal';
-import { AdminQuote } from '../../../types/admin';
+import { OrderOperationalModal } from './OrderOperationalModal';
+import { AdminQuote, UserRole } from '../../../types/admin';
 
 interface OrdersGridProps {
   initialQuoteForNewOS?: AdminQuote | null;
   onClearInitialQuote?: () => void;
+  userRole?: UserRole;
+  userName?: string;
 }
 
 export function OrdersGrid({
   initialQuoteForNewOS,
-  onClearInitialQuote
+  onClearInitialQuote,
+  userRole = 'DIRECTOR',
+  userName = 'Equipe 63 Motorsport'
 }: OrdersGridProps) {
   const [orders, setOrders] = useState<ServiceOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
 
+  const isOperator = userRole === 'OPERATOR';
+
   // Modais
   const [selectedOrderForPdf, setSelectedOrderForPdf] = useState<ServiceOrder | null>(null);
+  const [operationalOrder, setOperationalOrder] = useState<ServiceOrder | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<ServiceOrder | null>(null);
   const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
@@ -73,11 +84,22 @@ export function OrdersGrid({
     } else {
       const created = await serviceOrderApi.createOrder(payload);
       setOrders((prev) => [created, ...prev]);
-      // Abre a visualização em PDF da nova OS criada imediatamente!
-      setSelectedOrderForPdf(created);
+      setOperationalOrder(created);
     }
 
     if (onClearInitialQuote) onClearInitialQuote();
+  };
+
+  const handleSaveOperationalChanges = async (
+    id: string,
+    payload: Partial<ServiceOrder>
+  ): Promise<ServiceOrder> => {
+    const updated = await serviceOrderApi.updateOrder(id, payload);
+    setOrders((prev) => prev.map((o) => (o.id === id ? updated : o)));
+    if (operationalOrder?.id === id) {
+      setOperationalOrder(updated);
+    }
+    return updated;
   };
 
   const handleStatusChange = async (id: string, newStatus: OrderStatus) => {
@@ -113,6 +135,7 @@ export function OrdersGrid({
   const totalRevenue = orders
     .filter((o) => o.status !== 'CANCELLED')
     .reduce((acc, o) => acc + (o.totalAmount || 0), 0);
+  const totalPhotos = orders.reduce((acc, o) => acc + (o.evidences?.length || 0), 0);
 
   const filterTabs = [
     { key: 'ALL', label: 'Todas' },
@@ -137,7 +160,7 @@ export function OrdersGrid({
             </span>
           </div>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Cadastro de projetos mecânicos, calibração eletrônica, peças aplicadas e geração de PDF oficial
+            Controle de manutenções, checklist de entrada/saída, fotos de evidência e geração de dossiê PDF
           </p>
         </div>
 
@@ -193,15 +216,27 @@ export function OrdersGrid({
           <p className="text-[10px] text-slate-500 mt-1">Aferidas em dinamômetro</p>
         </div>
 
-        <div className="bg-[#12141A] border border-white/10 rounded-2xl p-4 shadow-lg">
-          <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 block mb-1">
-            Faturamento em OS
-          </span>
-          <span className="text-xl sm:text-2xl font-black text-emerald-400 font-mono">
-            R$ {totalRevenue.toLocaleString('pt-BR')}
-          </span>
-          <p className="text-[10px] text-slate-500 mt-1">Serviços e peças aplicadas</p>
-        </div>
+        {!isOperator ? (
+          <div className="bg-[#12141A] border border-white/10 rounded-2xl p-4 shadow-lg">
+            <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 block mb-1">
+              Faturamento em OS
+            </span>
+            <span className="text-xl sm:text-2xl font-black text-emerald-400 font-mono">
+              R$ {totalRevenue.toLocaleString('pt-BR')}
+            </span>
+            <p className="text-[10px] text-slate-500 mt-1">Serviços e peças aplicadas</p>
+          </div>
+        ) : (
+          <div className="bg-[#12141A] border border-white/10 rounded-2xl p-4 shadow-lg">
+            <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 block mb-1">
+              Fotos & Evidências
+            </span>
+            <span className="text-xl sm:text-2xl font-black text-red-400 font-mono">
+              {totalPhotos} fotos
+            </span>
+            <p className="text-[10px] text-slate-500 mt-1">Anexadas nos prontuários</p>
+          </div>
+        )}
       </div>
 
       {/* Search & Filter Tabs */}
@@ -217,7 +252,6 @@ export function OrdersGrid({
           />
         </div>
 
-        {/* Filter Pills */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
           {filterTabs.map((tab) => {
             const isActive = statusFilter === tab.key;
@@ -271,148 +305,181 @@ export function OrdersGrid({
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-[#151820] border-b border-white/10 text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400">
-                  <th className="py-3.5 px-4">Nº da OS</th>
+                  <th className="py-3.5 px-4">Nº da OS & Início/Fim</th>
                   <th className="py-3.5 px-4">Cliente</th>
                   <th className="py-3.5 px-4">Veículo & Placa</th>
-                  <th className="py-3.5 px-4">Telemetria Dinô</th>
-                  <th className="py-3.5 px-4">Valor Total</th>
+                  <th className="py-3.5 px-4">Operação (Checklist / Fotos)</th>
+                  {!isOperator && <th className="py-3.5 px-4">Valor Total</th>}
                   <th className="py-3.5 px-4">Status</th>
                   <th className="py-3.5 px-4 text-right">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5 text-xs">
-                {orders.map((o) => (
-                  <tr key={o.id} className="hover:bg-white/[0.02] transition-colors">
-                    {/* OS Number */}
-                    <td className="py-4 px-4 font-mono font-black text-red-500">
-                      {o.osNumber}
-                      <span className="block text-[10px] text-slate-500 font-normal">
-                        {new Date(o.createdAt).toLocaleDateString('pt-BR')}
-                      </span>
-                    </td>
+                {orders.map((o) => {
+                  const chkCount = o.checklist?.items.length || 0;
+                  const evCount = o.evidences?.length || 0;
+                  const tlCount = o.timeline?.length || 0;
 
-                    {/* Cliente */}
-                    <td className="py-4 px-4">
-                      <div className="font-bold text-white text-sm">{o.client.name}</div>
-                      <div className="text-[11px] text-slate-400 font-mono">{o.client.phone}</div>
-                    </td>
+                  return (
+                    <tr key={o.id} className="hover:bg-white/[0.02] transition-colors">
+                      {/* OS Number & Dates */}
+                      <td className="py-4 px-4 font-mono">
+                        <span className="font-black text-red-500 block">{o.osNumber}</span>
+                        <span className="block text-[10px] text-slate-400">
+                          Início: {new Date(o.maintenanceStartedAt || o.createdAt).toLocaleDateString('pt-BR')}
+                        </span>
+                        {o.maintenanceCompletedAt && (
+                          <span className="block text-[10px] text-emerald-400">
+                            Fim: {new Date(o.maintenanceCompletedAt).toLocaleDateString('pt-BR')}
+                          </span>
+                        )}
+                      </td>
 
-                    {/* Veículo */}
-                    <td className="py-4 px-4">
-                      <div className="text-slate-100 font-semibold">{o.vehicle.model}</div>
-                      <div className="text-[11px] text-slate-400 font-mono">
-                        {o.vehicle.plate || 'Sem placa'} {o.vehicle.year ? `• ${o.vehicle.year}` : ''}
-                      </div>
-                    </td>
+                      {/* Cliente */}
+                      <td className="py-4 px-4">
+                        <div className="font-bold text-white text-sm">{o.client.name}</div>
+                        <div className="text-[11px] text-slate-400 font-mono">{o.client.phone}</div>
+                      </td>
 
-                    {/* Telemetria */}
-                    <td className="py-4 px-4">
-                      {o.dynoTelemetry?.afterHp ? (
-                        <div className="font-mono">
-                          <span className="text-red-400 font-bold">{o.dynoTelemetry.afterHp} WHP</span>
-                          {o.dynoTelemetry.afterTorque && (
-                            <span className="text-slate-400 text-[11px]"> • {o.dynoTelemetry.afterTorque} kgfm</span>
-                          )}
+                      {/* Veículo */}
+                      <td className="py-4 px-4">
+                        <div className="text-slate-100 font-semibold">{o.vehicle.model}</div>
+                        <div className="text-[11px] text-slate-400 font-mono">
+                          {o.vehicle.plate || 'Sem placa'} {o.vehicle.year ? `• ${o.vehicle.year}` : ''}
                         </div>
-                      ) : (
-                        <span className="text-slate-500 text-[11px]">-</span>
-                      )}
-                    </td>
+                      </td>
 
-                    {/* Valor Total */}
-                    <td className="py-4 px-4 font-mono font-black text-emerald-400 text-sm">
-                      R$ {o.totalAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </td>
-
-                    {/* Status Dropdown */}
-                    <td className="py-4 px-4">
-                      <div className="relative inline-block text-left">
-                        <button
-                          type="button"
-                          onClick={() => setActiveDropdownId(activeDropdownId === o.id ? null : o.id)}
-                          className="inline-flex items-center gap-1.5 focus:outline-none"
-                        >
-                          <OrderStatusBadge status={o.status} />
-                          <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-                        </button>
-
-                        {activeDropdownId === o.id && (
-                          <div className="absolute left-0 mt-2 w-48 rounded-xl bg-[#1C1F28] border border-white/10 shadow-2xl py-1 z-30 divide-y divide-white/5">
-                            <button
-                              onClick={() => handleStatusChange(o.id, 'IN_PROGRESS')}
-                              className="w-full text-left px-3 py-1.5 text-xs text-amber-400 hover:bg-white/5"
-                            >
-                              Em Execução
-                            </button>
-                            <button
-                              onClick={() => handleStatusChange(o.id, 'WAITING_PARTS')}
-                              className="w-full text-left px-3 py-1.5 text-xs text-blue-400 hover:bg-white/5"
-                            >
-                              Aguardando Peças
-                            </button>
-                            <button
-                              onClick={() => handleStatusChange(o.id, 'COMPLETED')}
-                              className="w-full text-left px-3 py-1.5 text-xs text-emerald-400 hover:bg-white/5"
-                            >
-                              Concluído & Aferido
-                            </button>
-                            <button
-                              onClick={() => handleStatusChange(o.id, 'DELIVERED')}
-                              className="w-full text-left px-3 py-1.5 text-xs text-purple-400 hover:bg-white/5"
-                            >
-                              Entregue ao Cliente
-                            </button>
-                            <button
-                              onClick={() => handleStatusChange(o.id, 'DRAFT')}
-                              className="w-full text-left px-3 py-1.5 text-xs text-slate-400 hover:bg-white/5"
-                            >
-                              Rascunho
-                            </button>
-                            <button
-                              onClick={() => handleStatusChange(o.id, 'CANCELLED')}
-                              className="w-full text-left px-3 py-1.5 text-xs text-red-400 hover:bg-white/5"
-                            >
-                              Cancelado
-                            </button>
+                      {/* Indicadores Operacionais */}
+                      <td className="py-4 px-4">
+                        <div className="flex flex-wrap items-center gap-1.5 font-mono text-[10px]">
+                          <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+                            <ClipboardCheck className="w-3 h-3" />
+                            {chkCount} itens
+                          </span>
+                          <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center gap-1">
+                            <Camera className="w-3 h-3" />
+                            {evCount} fotos
+                          </span>
+                          <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 flex items-center gap-1">
+                            <History className="w-3 h-3" />
+                            {tlCount} etapas
+                          </span>
+                        </div>
+                        {o.dynoTelemetry?.afterHp && (
+                          <div className="text-[11px] font-mono text-red-400 font-bold mt-1">
+                            ⚡ {o.dynoTelemetry.afterHp} WHP ({o.dynoTelemetry.afterTorque} kgfm)
                           </div>
                         )}
-                      </div>
-                    </td>
+                      </td>
 
-                    {/* Ações */}
-                    <td className="py-4 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          onClick={() => setSelectedOrderForPdf(o)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-red-600 hover:bg-red-700 shadow-sm"
-                          title="Visualizar e Imprimir PDF"
-                        >
-                          <Printer className="w-3.5 h-3.5" />
-                          <span>PDF</span>
-                        </button>
+                      {/* Valor Total (apenas Diretoria) */}
+                      {!isOperator && (
+                        <td className="py-4 px-4 font-mono font-black text-emerald-400 text-sm">
+                          R$ {o.totalAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </td>
+                      )}
 
-                        <button
-                          onClick={() => {
-                            setEditingOrder(o);
-                            setIsFormOpen(true);
-                          }}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10"
-                          title="Editar OS"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
+                      {/* Status Dropdown */}
+                      <td className="py-4 px-4">
+                        <div className="relative inline-block text-left">
+                          <button
+                            type="button"
+                            onClick={() => setActiveDropdownId(activeDropdownId === o.id ? null : o.id)}
+                            className="inline-flex items-center gap-1.5 focus:outline-none"
+                          >
+                            <OrderStatusBadge status={o.status} />
+                            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                          </button>
 
-                        <button
-                          onClick={() => handleDelete(o.id, o.osNumber)}
-                          className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10"
-                          title="Excluir OS"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          {activeDropdownId === o.id && (
+                            <div className="absolute left-0 mt-2 w-48 rounded-xl bg-[#1C1F28] border border-white/10 shadow-2xl py-1 z-30 divide-y divide-white/5">
+                              <button
+                                onClick={() => handleStatusChange(o.id, 'IN_PROGRESS')}
+                                className="w-full text-left px-3 py-1.5 text-xs text-amber-400 hover:bg-white/5"
+                              >
+                                Em Execução
+                              </button>
+                              <button
+                                onClick={() => handleStatusChange(o.id, 'WAITING_PARTS')}
+                                className="w-full text-left px-3 py-1.5 text-xs text-blue-400 hover:bg-white/5"
+                              >
+                                Aguardando Peças
+                              </button>
+                              <button
+                                onClick={() => handleStatusChange(o.id, 'COMPLETED')}
+                                className="w-full text-left px-3 py-1.5 text-xs text-emerald-400 hover:bg-white/5"
+                              >
+                                Concluído & Aferido
+                              </button>
+                              <button
+                                onClick={() => handleStatusChange(o.id, 'DELIVERED')}
+                                className="w-full text-left px-3 py-1.5 text-xs text-purple-400 hover:bg-white/5"
+                              >
+                                Entregue ao Cliente
+                              </button>
+                              <button
+                                onClick={() => handleStatusChange(o.id, 'DRAFT')}
+                                className="w-full text-left px-3 py-1.5 text-xs text-slate-400 hover:bg-white/5"
+                              >
+                                Rascunho
+                              </button>
+                              <button
+                                onClick={() => handleStatusChange(o.id, 'CANCELLED')}
+                                className="w-full text-left px-3 py-1.5 text-xs text-red-400 hover:bg-white/5"
+                              >
+                                Cancelado
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Ações */}
+                      <td className="py-4 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => setOperationalOrder(o)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-[#1E2330] hover:bg-[#272D3D] border border-white/10 shadow-sm"
+                            title="Abrir Controle Operacional: Checklist, Fotos de Evidência e Histórico"
+                          >
+                            <ClipboardCheck className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>Operação</span>
+                          </button>
+
+                          <button
+                            onClick={() => setSelectedOrderForPdf(o)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-red-600 hover:bg-red-700 shadow-sm"
+                            title="Visualizar e Imprimir Dossiê PDF"
+                          >
+                            <Printer className="w-3.5 h-3.5" />
+                            <span>PDF</span>
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              setEditingOrder(o);
+                              setIsFormOpen(true);
+                            }}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10"
+                            title="Editar Cadastro da OS"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+
+                          {!isOperator && (
+                            <button
+                              onClick={() => handleDelete(o.id, o.osNumber)}
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10"
+                              title="Excluir OS"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -445,60 +512,35 @@ export function OrdersGrid({
                       Placa: {o.vehicle.plate}
                     </div>
                   )}
-                  {o.dynoTelemetry?.afterHp && (
-                    <div className="text-xs font-mono text-red-400 font-bold">
-                      Potência Dinô: {o.dynoTelemetry.afterHp} WHP
+                  <div className="flex items-center gap-2 text-[10px] font-mono text-slate-300 pt-1">
+                    <span>Checklist: {o.checklist?.items.length || 0}</span>
+                    <span>•</span>
+                    <span>Fotos: {o.evidences?.length || 0}</span>
+                    <span>•</span>
+                    <span>Etapas: {o.timeline?.length || 0}</span>
+                  </div>
+                  {!isOperator && (
+                    <div className="text-sm font-mono text-emerald-400 font-black pt-1 border-t border-white/5">
+                      Total: R$ {o.totalAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </div>
                   )}
-                  <div className="text-sm font-mono text-emerald-400 font-black pt-1 border-t border-white/5">
-                    Total: R$ {o.totalAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </div>
                 </div>
 
-                {/* Status Selector */}
-                <div className="flex items-center justify-between gap-2 pt-1 border-t border-white/5">
-                  <span className="text-[11px] text-slate-400 font-bold uppercase">Status:</span>
-                  <select
-                    value={o.status}
-                    onChange={(e) => handleStatusChange(o.id, e.target.value as OrderStatus)}
-                    className="bg-[#1A1D26] text-xs font-bold rounded-lg px-2.5 py-1 text-slate-200 border border-white/10"
-                  >
-                    <option value="IN_PROGRESS">Em Execução</option>
-                    <option value="WAITING_PARTS">Aguardando Peças</option>
-                    <option value="COMPLETED">Concluído</option>
-                    <option value="DELIVERED">Entregue</option>
-                    <option value="DRAFT">Rascunho</option>
-                    <option value="CANCELLED">Cancelado</option>
-                  </select>
-                </div>
-
-                {/* Action Buttons */}
                 <div className="flex items-center gap-2 pt-2">
                   <button
+                    onClick={() => setOperationalOrder(o)}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl font-bold uppercase tracking-wider text-xs text-white bg-[#1E2330] border border-white/10"
+                  >
+                    <ClipboardCheck className="w-4 h-4 text-emerald-400" />
+                    <span>Operação / Fotos</span>
+                  </button>
+
+                  <button
                     onClick={() => setSelectedOrderForPdf(o)}
-                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold uppercase tracking-wider text-xs text-white bg-red-600 hover:bg-red-700 active:scale-95 transition-all shadow-md"
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl font-bold uppercase tracking-wider text-xs text-white bg-red-600 hover:bg-red-700"
                   >
                     <Printer className="w-4 h-4" />
-                    <span>Ver / Imprimir PDF</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setEditingOrder(o);
-                      setIsFormOpen(true);
-                    }}
-                    className="p-2.5 rounded-xl bg-white/5 text-slate-300 hover:text-white border border-white/10"
-                    title="Editar"
-                  >
-                    <Edit className="w-4 h-4" />
-                  </button>
-
-                  <button
-                    onClick={() => handleDelete(o.id, o.osNumber)}
-                    className="p-2.5 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-600 hover:text-white border border-red-500/20"
-                    title="Excluir"
-                  >
-                    <Trash2 className="w-4 h-4" />
+                    <span>Laudo PDF</span>
                   </button>
                 </div>
               </div>
@@ -507,10 +549,26 @@ export function OrdersGrid({
         </>
       )}
 
+      {/* Modal de Controle Operacional */}
+      {operationalOrder && (
+        <OrderOperationalModal
+          order={operationalOrder}
+          userRole={userRole}
+          userName={userName}
+          onClose={() => setOperationalOrder(null)}
+          onSaveOrder={handleSaveOperationalChanges}
+          onOpenPdf={(orderToPrint) => {
+            setOperationalOrder(null);
+            setSelectedOrderForPdf(orderToPrint);
+          }}
+        />
+      )}
+
       {/* PDF View Modal */}
       {selectedOrderForPdf && (
         <OrderPdfView
           order={selectedOrderForPdf}
+          userRole={userRole}
           onClose={() => setSelectedOrderForPdf(null)}
         />
       )}
@@ -527,6 +585,7 @@ export function OrdersGrid({
           onSave={handleSaveOrder}
           initialOrder={editingOrder}
           initialQuote={initialQuoteForNewOS}
+          userRole={userRole}
         />
       )}
     </div>

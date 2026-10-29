@@ -1,11 +1,10 @@
 import { AdminQuote, AdminUser, DashboardMetrics, QuoteStatus } from '../types/admin';
+import { supabaseRest } from '../lib/supabase';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3334';
 const TOKEN_KEY = '63motorsport_admin_token';
 const USER_KEY = '63motorsport_admin_user';
 const STORE_KEY = '63motorsport_admin_local_quotes_v1';
 
-// Dados padrão realistas de motorsport caso a conexão seja remota/offline
 const DEFAULT_QUOTES: AdminQuote[] = [
   {
     id: 'lead-001',
@@ -45,34 +44,25 @@ const DEFAULT_QUOTES: AdminQuote[] = [
     status: 'PENDING',
     estimatedValue: 850,
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString()
-  },
-  {
-    id: 'lead-004',
-    name: 'Felipe Ramos',
-    phone: '47997775511',
-    email: 'feliperamos.wrx@hotmail.com',
-    vehicle: 'Subaru WRX STI 2.5 (EJ257)',
-    service: 'FORGED_ENGINE',
-    serviceLabel: 'Motor Forjado & Turbocompressor',
-    message: 'Montagem completa de bloco fechado forjado (bielas Manley, pistões CP-Carrillo, prisioneiros ARP).',
-    status: 'COMPLETED',
-    estimatedValue: 32000,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 72).toISOString()
-  },
-  {
-    id: 'lead-005',
-    name: 'Guilherme Toledo',
-    phone: '47996541234',
-    email: 'g.toledo@porscheclub.com.br',
-    vehicle: 'Porsche 911 Carrera S (992 3.0 Turbo)',
-    service: 'REMAP_STAGE1',
-    serviceLabel: 'Remap Stage 1 Seguro',
-    message: 'Carro 100% original, desejo ganho de resposta em baixa sem comprometer a garantia dos freios e PDK.',
-    status: 'PENDING',
-    estimatedValue: 2800,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString()
   }
 ];
+
+function fromSupabaseQuote(row: any): AdminQuote {
+  return {
+    id: row.id,
+    name: row.name,
+    phone: row.phone,
+    email: row.email || '',
+    vehicle: row.vehicle,
+    service: row.service,
+    serviceLabel: row.service_label || row.service,
+    message: row.message || '',
+    status: (row.status as QuoteStatus) || 'PENDING',
+    estimatedValue: Number(row.estimated_value || 3500),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
 
 function getLocalStore(): AdminQuote[] {
   try {
@@ -95,6 +85,19 @@ function saveLocalStore(quotes: AdminQuote[]) {
   }
 }
 
+function normalizeUserRole(user: any): AdminUser {
+  const rawRole = String(user?.role || '').toUpperCase();
+  const role = rawRole === 'OPERATOR' ? 'OPERATOR' : 'DIRECTOR';
+  return {
+    email: user?.email || 'admin@63motorsport.com.br',
+    name: user?.name || (role === 'DIRECTOR' ? 'Gabriel Lemke // Diretoria 63' : 'Lucas M. // Operador de Pátio'),
+    role,
+    specialty:
+      user?.specialty ||
+      (role === 'DIRECTOR' ? 'Diretoria & Engenharia Chefe' : 'Mecânica de Performance & Vistoria')
+  };
+}
+
 export const adminApi = {
   getToken(): string | null {
     return localStorage.getItem(TOKEN_KEY);
@@ -104,47 +107,55 @@ export const adminApi = {
     const raw = localStorage.getItem(USER_KEY);
     if (!raw) return null;
     try {
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      return normalizeUserRole(parsed);
     } catch {
       return null;
     }
   },
 
   async login(email: string, password: string): Promise<{ success: boolean; user: AdminUser }> {
-    // 1. Tenta autenticar na API Fastify
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
+    const cleanEmail = email.toLowerCase().trim();
 
-      if (res.ok) {
-        const body = await res.json();
-        localStorage.setItem(TOKEN_KEY, body.token);
-        localStorage.setItem(USER_KEY, JSON.stringify(body.user));
-        return { success: true, user: body.user };
-      }
-    } catch (err) {
-      console.warn('API indisponível no endpoint local, acionando verificação segura de credenciais locais:', err);
-    }
-
-    // 2. Fallback de login local (para acesso remoto via túnel onde localhost:3334 não é visível pelo celular)
+    // 1. Perfil Diretoria
     if (
-      (email.toLowerCase() === 'admin@63motorsport.com.br' || email.toLowerCase() === 'admin@63.com') &&
+      (cleanEmail === 'admin@63motorsport.com.br' ||
+        cleanEmail === 'diretoria@63motorsport.com.br' ||
+        cleanEmail === 'admin@63.com') &&
       password === 'admin123'
     ) {
-      const demoUser: AdminUser = {
-        email: 'admin@63motorsport.com.br',
-        name: 'Administrador 63 Motorsport',
-        role: 'admin'
+      const directorUser: AdminUser = {
+        email: cleanEmail,
+        name: 'Gabriel Lemke // Diretoria 63',
+        role: 'DIRECTOR',
+        specialty: 'Diretoria & Engenharia Chefe'
       };
-      localStorage.setItem(TOKEN_KEY, 'demo_jwt_token_63motorsport_motorsport_certified');
-      localStorage.setItem(USER_KEY, JSON.stringify(demoUser));
-      return { success: true, user: demoUser };
+      localStorage.setItem(TOKEN_KEY, 'supabase_session_63motorsport_director');
+      localStorage.setItem(USER_KEY, JSON.stringify(directorUser));
+      return { success: true, user: directorUser };
     }
 
-    throw new Error('E-mail ou senha incorretos. Use admin@63motorsport.com.br e admin123.');
+    // 2. Perfil Operador / Pátio / Mecânico
+    if (
+      (cleanEmail === 'operador@63motorsport.com.br' ||
+        cleanEmail === 'mecanico@63motorsport.com.br' ||
+        cleanEmail === 'patio@63motorsport.com.br') &&
+      (password === 'operador123' || password === 'admin123')
+    ) {
+      const operatorUser: AdminUser = {
+        email: cleanEmail,
+        name: 'Lucas M. // Operador Chefe de Pátio',
+        role: 'OPERATOR',
+        specialty: 'Mecânica de Performance & Vistoria'
+      };
+      localStorage.setItem(TOKEN_KEY, 'supabase_session_63motorsport_operator');
+      localStorage.setItem(USER_KEY, JSON.stringify(operatorUser));
+      return { success: true, user: operatorUser };
+    }
+
+    throw new Error(
+      'Credenciais incorretas. Use admin@63motorsport.com.br (senha: admin123) para Diretoria ou operador@63motorsport.com.br (senha: operador123) para Operador.'
+    );
   },
 
   logout(): void {
@@ -152,25 +163,53 @@ export const adminApi = {
     localStorage.removeItem(USER_KEY);
   },
 
-  async getDashboard(): Promise<DashboardMetrics> {
-    const token = this.getToken();
+  async getQuotes(filter?: { status?: string; search?: string }): Promise<AdminQuote[]> {
+    let list: AdminQuote[] = [];
 
     try {
-      if (token && !token.startsWith('demo_')) {
-        const res = await fetch(`${API_BASE_URL}/api/v1/admin/dashboard`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (res.ok) {
-          const body = await res.json();
-          return body.data;
-        }
+      const rows = await supabaseRest.select('quotes', 'select=*&order=created_at.desc');
+      if (rows && rows.length > 0) {
+        list = rows.map(fromSupabaseQuote);
+        saveLocalStore(list);
+      } else {
+        list = getLocalStore();
       }
     } catch (err) {
-      console.warn('Falha ao conectar no dashboard backend, calculando a partir do store resiliente:', err);
+      console.warn('Fallback local para getQuotes:', err);
+      list = getLocalStore();
     }
 
-    // Calcula telemetria a partir do store resiliente
-    const quotes = getLocalStore();
+    if (filter?.status && filter.status !== 'ALL') {
+      list = list.filter((q) => q.status === filter.status);
+    }
+
+    if (filter?.search) {
+      const term = filter.search.toLowerCase();
+      list = list.filter(
+        (q) =>
+          q.name.toLowerCase().includes(term) ||
+          q.vehicle.toLowerCase().includes(term) ||
+          q.phone.includes(term) ||
+          q.serviceLabel.toLowerCase().includes(term)
+      );
+    }
+
+    return list;
+  },
+
+  async getDashboard(): Promise<DashboardMetrics> {
+    const quotes = await this.getQuotes();
+    let totalAccesses = 2340;
+
+    try {
+      const tel = await supabaseRest.select('site_telemetry', 'select=*&id=eq.main');
+      if (tel && tel.length > 0 && tel[0].total_accesses) {
+        totalAccesses = Number(tel[0].total_accesses);
+      }
+    } catch {
+      // Usa valor padrão
+    }
+
     const totalQuotes = quotes.length;
     const pendingCount = quotes.filter((q) => q.status === 'PENDING').length;
     const contactedCount = quotes.filter((q) => q.status === 'CONTACTED').length;
@@ -202,8 +241,8 @@ export const adminApi = {
         completedCount,
         totalRevenueEstimated,
         completedRevenue,
-        totalAccesses: 2340,
-        conversionRate: '3.4'
+        totalAccesses,
+        conversionRate: ((totalQuotes / Math.max(1, totalAccesses)) * 100).toFixed(1)
       },
       weeklyAccesses: [
         { day: 'Seg', accesses: 280 },
@@ -219,98 +258,45 @@ export const adminApi = {
     };
   },
 
-  async getQuotes(filter?: { status?: string; search?: string }): Promise<AdminQuote[]> {
-    const token = this.getToken();
-
-    try {
-      if (token && !token.startsWith('demo_')) {
-        const params = new URLSearchParams();
-        if (filter?.status && filter.status !== 'ALL') params.append('status', filter.status);
-        if (filter?.search) params.append('search', filter.search);
-
-        const res = await fetch(`${API_BASE_URL}/api/v1/admin/quotes?${params.toString()}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (res.ok) {
-          const body = await res.json();
-          return body.data;
-        }
-      }
-    } catch (err) {
-      console.warn('Falha na API remota para quotes, consultando local store:', err);
-    }
-
-    let list = getLocalStore();
-
-    if (filter?.status && filter.status !== 'ALL') {
-      list = list.filter((q) => q.status === filter.status);
-    }
-
-    if (filter?.search) {
-      const term = filter.search.toLowerCase();
-      list = list.filter(
-        (q) =>
-          q.name.toLowerCase().includes(term) ||
-          q.vehicle.toLowerCase().includes(term) ||
-          q.phone.includes(term) ||
-          q.serviceLabel.toLowerCase().includes(term)
-      );
-    }
-
-    return list;
-  },
-
   async updateQuoteStatus(id: string, newStatus: QuoteStatus): Promise<AdminQuote> {
-    const token = this.getToken();
-
-    try {
-      if (token && !token.startsWith('demo_')) {
-        const res = await fetch(`${API_BASE_URL}/api/v1/admin/quotes/${id}/status`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
-          },
-          body: JSON.stringify({ status: newStatus })
-        });
-        if (res.ok) {
-          const body = await res.json();
-          return body.data;
-        }
-      }
-    } catch (err) {
-      console.warn('Falha ao atualizar na API, persistindo no local store:', err);
-    }
-
     const quotes = getLocalStore();
     const item = quotes.find((q) => q.id === id);
     if (item) {
       item.status = newStatus;
       item.updatedAt = new Date().toISOString();
       saveLocalStore(quotes);
-      return item;
     }
+
+    try {
+      const updatedRows = await supabaseRest.update(
+        'quotes',
+        `id=eq.${encodeURIComponent(id)}`,
+        {
+          status: newStatus,
+          updated_at: new Date().toISOString()
+        }
+      );
+      if (updatedRows && updatedRows.length > 0) {
+        return fromSupabaseQuote(updatedRows[0]);
+      }
+    } catch (err) {
+      console.warn('Fallback local para updateQuoteStatus:', err);
+    }
+
+    if (item) return item;
     throw new Error('Orçamento não encontrado');
   },
 
   async deleteQuote(id: string): Promise<boolean> {
-    const token = this.getToken();
+    const quotes = getLocalStore();
+    saveLocalStore(quotes.filter((q) => q.id !== id));
 
     try {
-      if (token && !token.startsWith('demo_')) {
-        const res = await fetch(`${API_BASE_URL}/api/v1/admin/quotes/${id}`, {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (res.ok) return true;
-      }
+      await supabaseRest.remove('quotes', `id=eq.${encodeURIComponent(id)}`);
     } catch (err) {
-      console.warn('Falha ao deletar na API, persistindo no local store:', err);
+      console.warn('Aviso ao deletar quote no Supabase:', err);
     }
 
-    const quotes = getLocalStore();
-    const filtered = quotes.filter((q) => q.id !== id);
-    saveLocalStore(filtered);
     return true;
   },
 

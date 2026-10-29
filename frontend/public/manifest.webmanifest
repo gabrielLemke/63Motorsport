@@ -1,0 +1,70 @@
+{
+  "id": "/?source=pwa",
+  "name": "63 Motorsport | Operação, Pátio & Telemetria",
+  "short_name": "63 Motorsport",
+  "description": "Aplicativo operacional para mecânicos, operadores e diretoria da 63 Motorsport: controle de pátio, checklist de veículos, fotos de evidência e histórico de manutenção.",
+  "start_url": "/?admin=true&source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#090A0D",
+  "theme_color": "#090A0D",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "categories": ["automotive", "business", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Controle de Pátio & Operação",
+      "short_name": "Pátio",
+      "description": "Abrir controle de rampa, checklist e fotos de evidência",
+      "url": "/?admin=true&tab=operations&source=pwa",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Clientes & Prontuário de Carros",
+      "short_name": "Carros",
+      "description": "Consultar histórico completo por placa ou cliente",
+      "url": "/?admin=true&tab=clients&source=pwa",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Ordens de Serviço (OS)",
+      "short_name": "Ordens",
+      "description": "Gerenciar OS e emitir laudo técnico em PDF",
+      "url": "/?admin=true&tab=orders&source=pwa",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ]
+}

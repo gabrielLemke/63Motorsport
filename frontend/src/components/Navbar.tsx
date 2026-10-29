@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { MessageSquare, Menu, X, ChevronRight, Lock } from 'lucide-react';
+import { MessageSquare, Menu, X, ChevronRight, Lock, Download } from 'lucide-react';
 
 interface NavbarProps {
   onOpenQuote: () => void;
   onOpenAdmin?: () => void;
+  onInstallApp?: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ onOpenQuote, onOpenAdmin }) => {
+export const Navbar: React.FC<NavbarProps> = ({ onOpenQuote, onOpenAdmin, onInstallApp }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleNavClick = () => {
@@ -34,30 +35,47 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenQuote, onOpenAdmin }) => {
         </a>
 
         {/* Links Desktop */}
-        <nav className="hidden md:flex items-center gap-6 lg:gap-8 text-sm font-medium text-zinc-300">
+        <nav className="hidden md:flex items-center gap-5 lg:gap-7 text-sm font-medium text-zinc-300">
           <a href="#servicos" className="hover:text-white transition-colors">Serviços</a>
           <a href="#dinamometro" className="hover:text-white transition-colors">Dinamômetro</a>
           <a href="#projetos" className="hover:text-white transition-colors">Projetos</a>
-          <a
-            href="#identidade"
-            className="text-red-400 hover:text-red-300 transition-colors font-mono text-xs uppercase px-2.5 py-1 bg-red-950/40 border border-red-800/50 rounded"
-          >
-            Guia Visual
-          </a>
+          {onInstallApp && (
+            <button
+              type="button"
+              onClick={onInstallApp}
+              className="text-red-400 hover:text-white text-xs font-mono uppercase flex items-center gap-1.5 px-2.5 py-1 rounded bg-red-600/15 hover:bg-red-600 border border-red-500/30 transition-colors cursor-pointer"
+              title="Baixar Aplicativo 63 Motorsport no iPhone, Android ou Computador"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Baixar App</span>
+            </button>
+          )}
           {onOpenAdmin && (
             <button
               onClick={onOpenAdmin}
-              className="text-zinc-400 hover:text-white text-xs font-mono uppercase flex items-center gap-1.5 px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 border border-white/10 transition-colors"
-              title="Acessar Central de Gestão da 63 Motorsport"
+              className="text-zinc-300 hover:text-white text-xs font-mono uppercase flex items-center gap-1.5 px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 border border-white/10 transition-colors cursor-pointer"
+              title="Acessar Central de Operação, Pátio e Diretoria da 63 Motorsport"
             >
               <Lock className="w-3 h-3 text-red-500" />
-              <span>Painel Admin</span>
+              <span>Operação / Diretoria</span>
             </button>
           )}
         </nav>
 
-        {/* Ações: CTA WhatsApp & Menu Mobile */}
-        <div className="flex items-center gap-1.5 sm:gap-3">
+        {/* Ações: Botão App Mobile + CTA WhatsApp + Menu Mobile */}
+        <div className="flex items-center gap-1.5 sm:gap-2.5">
+          {onInstallApp && (
+            <button
+              type="button"
+              onClick={onInstallApp}
+              className="md:hidden inline-flex items-center justify-center gap-1 px-2.5 py-2 text-[10px] font-bold uppercase tracking-wider text-white bg-red-600 hover:bg-red-700 rounded-md shadow-md cursor-pointer h-9"
+              title="Baixar Aplicativo"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>App</span>
+            </button>
+          )}
+
           <button
             onClick={onOpenQuote}
             className="inline-flex items-center justify-center gap-1.5 px-3 sm:px-5 py-2 sm:py-2.5 text-[11px] sm:text-xs font-bold uppercase tracking-wider text-black bg-white rounded-md hover:bg-zinc-200 active:scale-95 transition-all shadow-[0_0_15px_rgba(255,255,255,0.15)] cursor-pointer h-9 sm:h-10"
@@ -105,14 +123,23 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenQuote, onOpenAdmin }) => {
             <span>&gt; Projetos & Upgrades</span>
             <ChevronRight className="w-4 h-4 text-zinc-600" />
           </a>
-          <a
-            href="#identidade"
-            onClick={handleNavClick}
-            className="flex items-center justify-between text-red-400 font-bold py-2.5 border-b border-zinc-800/70"
-          >
-            <span>&gt; Manual de Identidade Visual</span>
-            <ChevronRight className="w-4 h-4 text-red-500/50" />
-          </a>
+
+          {onInstallApp && (
+            <button
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                onInstallApp();
+              }}
+              className="w-full flex items-center justify-between text-red-400 font-bold py-2.5 border-b border-zinc-800/70 text-left cursor-pointer"
+            >
+              <span className="flex items-center gap-2">
+                <Download className="w-4 h-4 text-red-500" />
+                <span>&gt; Baixar Aplicativo (iPhone / Android)</span>
+              </span>
+              <ChevronRight className="w-4 h-4 text-red-500/60" />
+            </button>
+          )}
 
           {onOpenAdmin && (
             <button
@@ -120,11 +147,11 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenQuote, onOpenAdmin }) => {
                 setMobileMenuOpen(false);
                 onOpenAdmin();
               }}
-              className="w-full flex items-center justify-between text-zinc-400 hover:text-white py-2.5 border-b border-zinc-800/70 text-left cursor-pointer"
+              className="w-full flex items-center justify-between text-zinc-300 hover:text-white py-2.5 border-b border-zinc-800/70 text-left cursor-pointer"
             >
               <span className="flex items-center gap-2">
                 <Lock className="w-3.5 h-3.5 text-red-500" />
-                <span>&gt; Área Administrativa (Login)</span>
+                <span>&gt; Operação & Diretoria (Login)</span>
               </span>
               <ChevronRight className="w-4 h-4 text-zinc-600" />
             </button>

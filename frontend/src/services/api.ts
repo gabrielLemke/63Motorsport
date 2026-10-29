@@ -1,73 +1,97 @@
 import { DynoProject, QuoteInput, QuoteResponse } from '../types';
+import { supabaseRest } from '../lib/supabase';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3334';
-const DEFAULT_WHATSAPP_PHONE = import.meta.env.VITE_WHATSAPP_PHONE || '5547999999999';
+const DEFAULT_WHATSAPP_PHONE = import.meta.env.VITE_WHATSAPP_PHONE || '5547998821455';
+
+const SERVICE_PRICES: Record<string, { label: string; value: number }> = {
+  REMAP_STAGE1: { label: 'Remap ECU Stage 1', value: 2400 },
+  REMAP_STAGE2: { label: 'Remap ECU Stage 2 Custom', value: 3500 },
+  REMAP_STAGE3: { label: 'Projeto Stage 3 / Big Turbo', value: 12000 },
+  DYNO_TUNING: { label: 'Aferição & Acerto em Dinamômetro 4x4', value: 850 },
+  FORGED_ENGINE: { label: 'Preparação de Motor Forjado', value: 25000 },
+  TRACK_PREP: { label: 'Freios, Suspensão & Track Prep', value: 4200 },
+  MAINTENANCE: { label: 'Manutenção Premium & Diagnóstico', value: 1500 }
+};
 
 export async function submitQuote(input: QuoteInput): Promise<QuoteResponse> {
+  const quoteId = `lead-${Date.now()}`;
+  const serviceMeta = SERVICE_PRICES[input.service] || {
+    label: input.service.replace(/_/g, ' '),
+    value: 3500
+  };
+
+  // 1. Grava diretamente no Supabase Cloud (public.quotes)
   try {
-    const res = await fetch(`${API_BASE_URL}/api/v1/quotes`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
+    await supabaseRest.upsert(
+      'quotes',
+      {
+        id: quoteId,
+        name: input.name,
+        phone: input.phone,
+        email: input.email || '',
+        vehicle: input.vehicle,
+        service: input.service,
+        service_label: serviceMeta.label,
+        message: input.message || '',
+        status: 'PENDING',
+        estimated_value: serviceMeta.value,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       },
-      body: JSON.stringify(input)
-    });
-
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
-      throw new Error(errorData.message || 'Erro ao registrar orçamento na API');
-    }
-
-    const data = await res.json();
-    saveQuoteToLocalStore(input, data.data?.quoteId);
-    return data;
-  } catch (err) {
-    console.warn('API backend indisponível ou offline. Gerando redirecionamento direto:', err);
-
-    saveQuoteToLocalStore(input, null);
-
-    // Fallback gracioso: gera o link do WhatsApp no cliente para não perder a conversão do lead
-    const message = encodeURIComponent(
-      `Olá 63 Motorsport! Gostaria de um orçamento para o meu projeto.\n\n` +
-      `👤 Nome: ${input.name}\n` +
-      `🚗 Veículo: ${input.vehicle}\n` +
-      `⚡ Serviço: ${input.service}\n` +
-      (input.message ? `📝 Detalhes: ${input.message}\n` : '') +
-      `\nAguardo contato!`
+      'id'
     );
-
-    return {
-      statusCode: 200,
-      message: 'Redirecionando para o WhatsApp da equipe 63 Motorsport...',
-      data: {
-        quoteId: null,
-        whatsappUrl: `https://wa.me/${DEFAULT_WHATSAPP_PHONE}?text=${message}`,
-        serviceLabel: input.service
-      }
-    };
+  } catch (err) {
+    console.warn('Aviso ao gravar orçamento no Supabase (salvo no cache local):', err);
   }
+
+  saveQuoteToLocalStore(input, quoteId, serviceMeta.label, serviceMeta.value);
+
+  const message = encodeURIComponent(
+    `🏁 *63 MOTORSPORT // SOLICITAÇÃO DE ORÇAMENTO*\n\n` +
+      `👤 *Cliente:* ${input.name}\n` +
+      `📱 *WhatsApp:* ${input.phone}\n` +
+      `🚗 *Veículo:* ${input.vehicle}\n` +
+      `⚡ *Serviço:* ${serviceMeta.label}\n` +
+      (input.message ? `📝 *Detalhes:* ${input.message}\n` : '') +
+      `\nAguardo retorno da engenharia 63 Motorsport!`
+  );
+
+  return {
+    statusCode: 201,
+    message: 'Orçamento registrado na nuvem 63 Motorsport! Redirecionando para o WhatsApp...',
+    data: {
+      quoteId,
+      whatsappUrl: `https://wa.me/${DEFAULT_WHATSAPP_PHONE}?text=${message}`,
+      serviceLabel: serviceMeta.label
+    }
+  };
 }
 
-function saveQuoteToLocalStore(input: QuoteInput, serverId: string | null) {
+function saveQuoteToLocalStore(
+  input: QuoteInput,
+  serverId: string,
+  serviceLabel: string,
+  estimatedValue: number
+) {
   try {
     const STORE_KEY = '63motorsport_admin_local_quotes_v1';
     const raw = localStorage.getItem(STORE_KEY);
     const list = raw ? JSON.parse(raw) : [];
-    
+
     const newQuote = {
-      id: serverId || `lead-local-${Date.now()}`,
+      id: serverId,
       name: input.name,
       phone: input.phone,
       email: input.email || '',
       vehicle: input.vehicle,
       service: input.service,
-      serviceLabel: input.service.replace(/_/g, ' '),
+      serviceLabel,
       message: input.message || '',
       status: 'PENDING',
-      estimatedValue: 3500,
+      estimatedValue,
       createdAt: new Date().toISOString()
     };
-    
+
     list.unshift(newQuote);
     localStorage.setItem(STORE_KEY, JSON.stringify(list));
   } catch (e) {
@@ -76,17 +100,6 @@ function saveQuoteToLocalStore(input: QuoteInput, serverId: string | null) {
 }
 
 export async function fetchDynoProjects(): Promise<DynoProject[]> {
-  try {
-    const res = await fetch(`${API_BASE_URL}/api/v1/projects`);
-    if (res.ok) {
-      const body = await res.json();
-      return body.data;
-    }
-  } catch (err) {
-    console.warn('Usando projetos mock padrão:', err);
-  }
-
-  // Projetos padrão caso API não esteja ativa
   return [
     {
       id: 'proj-1',

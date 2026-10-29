@@ -1,5 +1,9 @@
 export type QuoteStatus = 'PENDING' | 'CONTACTED' | 'SCHEDULED' | 'COMPLETED' | 'CANCELLED';
 
+export type UserRole = 'DIRECTOR' | 'OPERATOR';
+
+export type AdminTab = 'operations' | 'clients' | 'orders' | 'quotes' | 'dashboard';
+
 export interface AdminQuote {
   id: string;
   name: string;
@@ -35,5 +39,6 @@ export interface DashboardMetrics {
 export interface AdminUser {
   email: string;
   name: string;
-  role: string;
+  role: UserRole;
+  specialty?: string;
 }

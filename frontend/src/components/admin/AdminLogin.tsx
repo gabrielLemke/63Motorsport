@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Lock, Mail, ShieldAlert, ArrowLeft, Zap, CheckCircle2 } from 'lucide-react';
+import { Lock, Mail, ShieldAlert, ArrowLeft, Shield, Wrench, CheckCircle2 } from 'lucide-react';
 import { adminApi } from '../../services/adminApi';
 import { AdminUser } from '../../types/admin';
 
@@ -35,9 +35,15 @@ export function AdminLogin({ onLoginSuccess, onBackToSite }: AdminLoginProps) {
     }
   };
 
-  const handleFillDemo = () => {
+  const handleFillDirector = () => {
     setEmail('admin@63motorsport.com.br');
     setPassword('admin123');
+    setErrorMessage(null);
+  };
+
+  const handleFillOperator = () => {
+    setEmail('operador@63motorsport.com.br');
+    setPassword('operador123');
     setErrorMessage(null);
   };
 
@@ -59,14 +65,14 @@ export function AdminLogin({ onLoginSuccess, onBackToSite }: AdminLoginProps) {
         </button>
 
         <span className="text-[11px] font-mono text-slate-500 uppercase tracking-widest">
-          PORTAL RESTRITO
+          PORTAL OPERACIONAL & DIRETORIA
         </span>
       </div>
 
       {/* Main Login Card */}
       <div className="w-full max-w-md bg-[#13151A] border border-white/10 rounded-2xl p-6 sm:p-8 shadow-2xl relative z-10 backdrop-blur-sm">
         {/* Header with 63 Motorsport branding */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#1C1F26] border border-red-500/30 text-red-500 mb-4 shadow-[0_0_20px_rgba(239,68,68,0.2)]">
             <Lock className="w-7 h-7" />
           </div>
@@ -76,29 +82,58 @@ export function AdminLogin({ onLoginSuccess, onBackToSite }: AdminLoginProps) {
             </span>
           </div>
           <h1 className="text-base font-bold text-slate-200 uppercase tracking-wider">
-            Central de Administração
+            Central de Operação & Diretoria
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            Gestão de telemetria, tráfego e solicitações de orçamento
+            Controle de pátio, clientes, carros, checklists, evidências e histórico de manutenção
           </p>
         </div>
 
-        {/* Demo Fast Access Pill */}
-        <div className="mb-6 p-3 rounded-xl bg-[#1A1D24] border border-white/5 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Zap className="w-4 h-4 text-amber-400 shrink-0" />
-            <div className="text-left">
-              <p className="text-xs font-bold text-slate-200">Acesso Rápido Demo</p>
-              <p className="text-[11px] text-slate-400">admin@63motorsport.com.br</p>
-            </div>
+        {/* Seletor Rápido de Perfil (Diretoria vs Operador) */}
+        <div className="mb-6 space-y-2">
+          <span className="block text-[10px] font-mono uppercase tracking-wider text-slate-400">
+            Selecionar Perfil de Acesso Rápido:
+          </span>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <button
+              type="button"
+              onClick={handleFillDirector}
+              className="p-3 rounded-xl bg-[#1A1D24] hover:bg-red-600/15 border border-white/10 hover:border-red-500/40 text-left transition-all group"
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-white group-hover:text-red-400">
+                  <Shield className="w-3.5 h-3.5 text-red-500" />
+                  Diretoria
+                </span>
+                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-red-600/20 text-red-400">
+                  COMPLETO
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-400 leading-snug">
+                Operação + Financeiro, Telemetria, Orçamentos e OS
+              </p>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleFillOperator}
+              className="p-3 rounded-xl bg-[#1A1D24] hover:bg-emerald-600/15 border border-white/10 hover:border-emerald-500/40 text-left transition-all group"
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-white group-hover:text-emerald-400">
+                  <Wrench className="w-3.5 h-3.5 text-emerald-400" />
+                  Operador / Pátio
+                </span>
+                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-600/20 text-emerald-400">
+                  TÉCNICO
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-400 leading-snug">
+                Pátio, Checklist, Fotos, Carros e Histórico (Sem R$)
+              </p>
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={handleFillDemo}
-            className="text-xs font-bold px-3 py-1.5 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white transition-all border border-red-500/30"
-          >
-            Preencher
-          </button>
         </div>
 
         {/* Error notification */}
@@ -113,7 +148,7 @@ export function AdminLogin({ onLoginSuccess, onBackToSite }: AdminLoginProps) {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
-              E-mail de Operador
+              E-mail de Acesso (Diretoria ou Operador)
             </label>
             <div className="relative">
               <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -122,7 +157,7 @@ export function AdminLogin({ onLoginSuccess, onBackToSite }: AdminLoginProps) {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="exemplo@63motorsport.com.br"
+                placeholder="admin@63motorsport.com.br ou operador@63motorsport.com.br"
                 className="w-full bg-[#0D0E12] border border-white/10 rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-colors"
               />
             </div>
@@ -158,7 +193,7 @@ export function AdminLogin({ onLoginSuccess, onBackToSite }: AdminLoginProps) {
             ) : (
               <>
                 <CheckCircle2 className="w-4 h-4" />
-                <span>Entrar no Painel</span>
+                <span>Entrar no Sistema</span>
               </>
             )}
           </button>
@@ -168,7 +203,7 @@ export function AdminLogin({ onLoginSuccess, onBackToSite }: AdminLoginProps) {
         <div className="mt-8 pt-6 border-t border-white/5 text-center">
           <p className="text-[11px] text-slate-500 flex items-center justify-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            Conexão Criptografada SSL / JWT Auth v1.0
+            Conexão Criptografada SSL / Controle de Acesso por Perfil
           </p>
         </div>
       </div>

@@ -6,8 +6,8 @@ import {
   Wrench,
   CheckCircle2
 } from 'lucide-react';
-import { ServiceOrder, OrderItem, OrderStatus } from '../../../types/serviceOrder';
-import { AdminQuote } from '../../../types/admin';
+import { ServiceOrder, OrderItem, OrderStatus, createDefaultChecklist } from '../../../types/serviceOrder';
+import { AdminQuote, UserRole } from '../../../types/admin';
 
 interface OrderFormModalProps {
   isOpen: boolean;
@@ -15,6 +15,8 @@ interface OrderFormModalProps {
   onSave: (orderData: Partial<ServiceOrder>) => Promise<void>;
   initialOrder?: ServiceOrder | null;
   initialQuote?: AdminQuote | null;
+  prefillClientAndVehicle?: ServiceOrder | null;
+  userRole?: UserRole;
 }
 
 export function OrderFormModal({
@@ -22,34 +24,52 @@ export function OrderFormModal({
   onClose,
   onSave,
   initialOrder,
-  initialQuote
+  initialQuote,
+  prefillClientAndVehicle,
+  userRole = 'DIRECTOR'
 }: OrderFormModalProps) {
-  // Estado inicial inteligente (a partir de edição ou de conversão de orçamento)
+  const sourceOrder = initialOrder || prefillClientAndVehicle;
+  const isOperator = userRole === 'OPERATOR';
+
   const [clientName, setClientName] = useState(
-    initialOrder?.client.name || initialQuote?.name || ''
+    sourceOrder?.client.name || initialQuote?.name || ''
   );
-  const [clientDoc, setClientDoc] = useState(initialOrder?.client.document || '');
+  const [clientDoc, setClientDoc] = useState(sourceOrder?.client.document || '');
   const [clientPhone, setClientPhone] = useState(
-    initialOrder?.client.phone || initialQuote?.phone || ''
+    sourceOrder?.client.phone || initialQuote?.phone || ''
   );
   const [clientEmail, setClientEmail] = useState(
-    initialOrder?.client.email || initialQuote?.email || ''
+    sourceOrder?.client.email || initialQuote?.email || ''
   );
-  const [clientCity, setClientCity] = useState(initialOrder?.client.city || 'Joinville / SC');
-  const [clientAddress, setClientAddress] = useState(initialOrder?.client.address || '');
+  const [clientCity, setClientCity] = useState(sourceOrder?.client.city || 'Joinville / SC');
+  const [clientAddress, setClientAddress] = useState(sourceOrder?.client.address || '');
 
   const [vehicleModel, setVehicleModel] = useState(
-    initialOrder?.vehicle.model || initialQuote?.vehicle || ''
+    sourceOrder?.vehicle.model || initialQuote?.vehicle || ''
   );
-  const [vehicleBrand, setVehicleBrand] = useState(initialOrder?.vehicle.brand || '');
-  const [vehiclePlate, setVehiclePlate] = useState(initialOrder?.vehicle.plate || '');
-  const [vehicleYear, setVehicleYear] = useState(initialOrder?.vehicle.year || '');
-  const [vehicleMileage, setVehicleMileage] = useState(initialOrder?.vehicle.mileage || '');
+  const [vehicleBrand, setVehicleBrand] = useState(sourceOrder?.vehicle.brand || '');
+  const [vehiclePlate, setVehiclePlate] = useState(sourceOrder?.vehicle.plate || '');
+  const [vehicleYear, setVehicleYear] = useState(sourceOrder?.vehicle.year || '');
+  const [vehicleMileage, setVehicleMileage] = useState(sourceOrder?.vehicle.mileage || '');
   const [vehicleFuel, setVehicleFuel] = useState(
-    initialOrder?.vehicle.fuel || 'Gasolina Podium'
+    sourceOrder?.vehicle.fuel || 'Gasolina Podium'
   );
   const [vehicleSetup, setVehicleSetup] = useState(
-    initialOrder?.vehicle.currentSetup || initialQuote?.message || ''
+    sourceOrder?.vehicle.currentSetup || initialQuote?.message || ''
+  );
+
+  // Campos operacionais de pátio
+  const [leadOperator, setLeadOperator] = useState(
+    initialOrder?.leadOperator || 'Lucas M. // Operador Chefe'
+  );
+  const [boxRamp, setBoxRamp] = useState(
+    initialOrder?.boxRamp || 'Rampa 01 - Recepção & Diagnóstico'
+  );
+  const [fuelLevelEntry, setFuelLevelEntry] = useState<'RESERVA' | '1/4' | '1/2' | '3/4' | 'CHEIO'>(
+    initialOrder?.checklist?.fuelLevelEntry || '1/2'
+  );
+  const [bodyworkNotes, setBodyworkNotes] = useState(
+    initialOrder?.checklist?.bodyworkNotes || 'Sem avarias aparentes na recepção'
   );
 
   const [dynoBeforeHp, setDynoBeforeHp] = useState<number | ''>(
@@ -95,7 +115,8 @@ export function OrderFormModal({
           description: `Serviço de ${initialQuote.serviceLabel}`,
           quantity: 1,
           unitPrice: initialQuote.estimatedValue || 3500,
-          totalPrice: initialQuote.estimatedValue || 3500
+          totalPrice: initialQuote.estimatedValue || 3500,
+          executed: false
         }
       ];
     }
@@ -103,10 +124,11 @@ export function OrderFormModal({
       {
         id: `item-${Date.now()}`,
         type: 'SERVICE',
-        description: 'Mapeamento Customizado de ECU em Dinamômetro 4x4',
+        description: 'Diagnóstico Técnico, Checklist Inicial e Preparação em Oficina',
         quantity: 1,
-        unitPrice: 3200,
-        totalPrice: 3200
+        unitPrice: isOperator ? 0 : 3200,
+        totalPrice: isOperator ? 0 : 3200,
+        executed: false
       }
     ];
   });
@@ -115,7 +137,6 @@ export function OrderFormModal({
 
   if (!isOpen) return null;
 
-  // Adicionar novo item
   const handleAddItem = (type: 'SERVICE' | 'PART') => {
     const newItem: OrderItem = {
       id: `item-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
@@ -123,7 +144,8 @@ export function OrderFormModal({
       description: type === 'SERVICE' ? 'Novo Serviço de Preparação' : 'Nova Peça / Insumo Racing',
       quantity: 1,
       unitPrice: 0,
-      totalPrice: 0
+      totalPrice: 0,
+      executed: false
     };
     setItems((prev) => [...prev, newItem]);
   };
@@ -148,7 +170,6 @@ export function OrderFormModal({
     setItems((prev) => prev.filter((i) => i.id !== id));
   };
 
-  // Cálculos dinâmicos
   const subtotalServices = items
     .filter((i) => i.type === 'SERVICE')
     .reduce((acc, i) => acc + (i.totalPrice || 0), 0);
@@ -162,8 +183,13 @@ export function OrderFormModal({
     setIsSubmitting(true);
 
     try {
+      const baseChecklist =
+        initialOrder?.checklist || createDefaultChecklist(vehicleMileage, leadOperator);
+
       const orderPayload: Partial<ServiceOrder> = {
         status,
+        leadOperator,
+        boxRamp,
         client: {
           name: clientName,
           document: clientDoc,
@@ -180,6 +206,12 @@ export function OrderFormModal({
           mileage: vehicleMileage,
           fuel: vehicleFuel,
           currentSetup: vehicleSetup
+        },
+        checklist: {
+          ...baseChecklist,
+          mileageEntry: vehicleMileage || baseChecklist.mileageEntry,
+          fuelLevelEntry,
+          bodyworkNotes
         },
         dynoTelemetry: {
           beforeHp: dynoBeforeHp === '' ? undefined : Number(dynoBeforeHp),
@@ -220,12 +252,16 @@ export function OrderFormModal({
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-bold text-white uppercase tracking-wider font-['Montserrat']">
-                {initialOrder ? `Editar ${initialOrder.osNumber}` : 'Nova Ordem de Serviço'}
+                {initialOrder
+                  ? `Editar ${initialOrder.osNumber}`
+                  : prefillClientAndVehicle
+                  ? `Nova Manutenção para ${prefillClientAndVehicle.vehicle.model}`
+                  : 'Receber Veículo / Nova Ordem de Serviço'}
               </h2>
               <p className="text-xs text-slate-400">
                 {initialQuote
                   ? `Gerando OS a partir do orçamento de ${initialQuote.name}`
-                  : 'Cadastro de serviços, peças aplicadas e telemetria de dinamômetro'}
+                  : 'Cadastro de cliente, carro, recepção no pátio, serviços e histórico técnico'}
               </p>
             </div>
           </div>
@@ -329,10 +365,10 @@ export function OrderFormModal({
             </div>
           </div>
 
-          {/* Seção 2: Dados do Veículo */}
+          {/* Seção 2: Dados do Veículo & Check-in Operacional */}
           <div className="bg-[#161820] border border-white/5 rounded-xl p-4 space-y-3">
             <h3 className="text-xs font-bold uppercase tracking-wider text-red-400">
-              2. Dados do Veículo & Setup
+              2. Dados do Veículo, Check-in de Entrada & Rampa
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
@@ -404,7 +440,24 @@ export function OrderFormModal({
 
               <div>
                 <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
-                  Combustível
+                  Nível Tanque (Entrada)
+                </label>
+                <select
+                  value={fuelLevelEntry}
+                  onChange={(e) => setFuelLevelEntry(e.target.value as any)}
+                  className="w-full bg-[#0D0E12] border border-white/10 rounded-lg px-3 py-2 text-xs text-white font-mono"
+                >
+                  <option value="RESERVA">Reserva</option>
+                  <option value="1/4">1/4 de Tanque</option>
+                  <option value="1/2">1/2 Tanque</option>
+                  <option value="3/4">3/4 de Tanque</option>
+                  <option value="CHEIO">Tanque Cheio</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
+                  Combustível no Tanque
                 </label>
                 <select
                   value={vehicleFuel}
@@ -420,6 +473,35 @@ export function OrderFormModal({
 
               <div className="sm:col-span-2">
                 <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
+                  Box / Rampa de Operação
+                </label>
+                <select
+                  value={boxRamp}
+                  onChange={(e) => setBoxRamp(e.target.value)}
+                  className="w-full bg-[#0D0E12] border border-white/10 rounded-lg px-3 py-2 text-xs text-white"
+                >
+                  <option value="Rampa 01 - Recepção & Diagnóstico">Rampa 01 - Recepção & Diagnóstico</option>
+                  <option value="Rampa 02 - Preparação Turbo & Motor">Rampa 02 - Preparação Turbo & Motor</option>
+                  <option value="Box 03 - Dinamômetro Servitec 4x4">Box 03 - Dinamômetro Servitec 4x4</option>
+                  <option value="Rampa 04 - Freios & Suspensão">Rampa 04 - Freios & Suspensão</option>
+                </select>
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
+                  Operador / Mecânico Responsável
+                </label>
+                <input
+                  type="text"
+                  value={leadOperator}
+                  onChange={(e) => setLeadOperator(e.target.value)}
+                  placeholder="Ex: Lucas M. // Mecânico Chefe"
+                  className="w-full bg-[#0D0E12] border border-white/10 rounded-lg px-3 py-2 text-xs text-white"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
                   Setup Atual / Peças Instaladas
                 </label>
                 <input
@@ -430,6 +512,19 @@ export function OrderFormModal({
                   className="w-full bg-[#0D0E12] border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-red-500"
                 />
               </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
+                  Observação Inicial de Vistoria (Lataria / Rodas)
+                </label>
+                <input
+                  type="text"
+                  value={bodyworkNotes}
+                  onChange={(e) => setBodyworkNotes(e.target.value)}
+                  placeholder="Ex: Pintura íntegra, sem riscos aparentes na recepção"
+                  className="w-full bg-[#0D0E12] border border-white/10 rounded-lg px-3 py-2 text-xs text-white"
+                />
+              </div>
             </div>
           </div>
 
@@ -438,7 +533,7 @@ export function OrderFormModal({
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <h3 className="text-xs font-bold uppercase tracking-wider text-red-400">
-                  3. Discriminação de Serviços Realizados e Peças Aplicadas
+                  3. Serviços a Executar / Peças Aplicadas no Carro
                 </h3>
                 <p className="text-[11px] text-slate-400">
                   Adicione as etapas de preparação mecânica, calibração eletrônica e peças racing
@@ -465,7 +560,6 @@ export function OrderFormModal({
               </div>
             </div>
 
-            {/* Tabela de Itens Editável */}
             <div className="space-y-2">
               {items.map((item, index) => (
                 <div
@@ -508,21 +602,25 @@ export function OrderFormModal({
                       />
                     </div>
 
-                    <div className="w-28">
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={item.unitPrice}
-                        onChange={(e) => handleUpdateItem(item.id, 'unitPrice', e.target.value)}
-                        className="w-full bg-[#1A1D26] border border-white/10 rounded-lg px-2 py-1.5 text-xs text-right text-white font-mono"
-                        placeholder="Unitário (R$)"
-                      />
-                    </div>
+                    {!isOperator && (
+                      <>
+                        <div className="w-28">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={item.unitPrice}
+                            onChange={(e) => handleUpdateItem(item.id, 'unitPrice', e.target.value)}
+                            className="w-full bg-[#1A1D26] border border-white/10 rounded-lg px-2 py-1.5 text-xs text-right text-white font-mono"
+                            placeholder="Unitário (R$)"
+                          />
+                        </div>
 
-                    <div className="w-28 text-right font-mono text-xs font-bold text-emerald-400">
-                      R$ {item.totalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </div>
+                        <div className="w-28 text-right font-mono text-xs font-bold text-emerald-400">
+                          R$ {item.totalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </div>
+                      </>
+                    )}
 
                     <button
                       type="button"
@@ -538,7 +636,7 @@ export function OrderFormModal({
             </div>
           </div>
 
-          {/* Seção 4: Telemetria de Dinamômetro Servitec (Opcional) */}
+          {/* Seção 4: Telemetria de Dinamômetro Servitec */}
           <div className="bg-[#161820] border border-white/5 rounded-xl p-4 space-y-3">
             <h3 className="text-xs font-bold uppercase tracking-wider text-red-400">
               4. Telemetria de Dinamômetro Servitec 4x4 (Opcional)
@@ -631,7 +729,7 @@ export function OrderFormModal({
           {/* Seção 5: Condições Comerciais, Status e Garantia */}
           <div className="bg-[#161820] border border-white/5 rounded-xl p-4 space-y-3">
             <h3 className="text-xs font-bold uppercase tracking-wider text-red-400">
-              5. Condições de Pagamento, Status & Garantia
+              5. Status Operacional & Observações Técnicas
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -653,37 +751,41 @@ export function OrderFormModal({
                 </select>
               </div>
 
-              <div>
-                <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
-                  Forma de Pagamento
-                </label>
-                <input
-                  type="text"
-                  value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value)}
-                  placeholder="Pix, Cartão 10x, 50% Entrada"
-                  className="w-full bg-[#0D0E12] border border-white/10 rounded-lg px-3 py-2 text-xs text-white"
-                />
-              </div>
+              {!isOperator && (
+                <>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
+                      Forma de Pagamento
+                    </label>
+                    <input
+                      type="text"
+                      value={paymentMethod}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                      placeholder="Pix, Cartão 10x, 50% Entrada"
+                      className="w-full bg-[#0D0E12] border border-white/10 rounded-lg px-3 py-2 text-xs text-white"
+                    />
+                  </div>
 
-              <div>
-                <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
-                  Desconto Concedido (R$)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={discount}
-                  onChange={(e) => setDiscount(Number(e.target.value) || 0)}
-                  placeholder="0.00"
-                  className="w-full bg-[#0D0E12] border border-white/10 rounded-lg px-3 py-2 text-xs text-white font-mono"
-                />
-              </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
+                      Desconto Concedido (R$)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={discount}
+                      onChange={(e) => setDiscount(Number(e.target.value) || 0)}
+                      placeholder="0.00"
+                      className="w-full bg-[#0D0E12] border border-white/10 rounded-lg px-3 py-2 text-xs text-white font-mono"
+                    />
+                  </div>
+                </>
+              )}
 
               <div className="sm:col-span-3">
                 <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
-                  Observações Técnicas para o Cliente
+                  Observações Técnicas para o Cliente / Prontuário
                 </label>
                 <input
                   type="text"
@@ -708,36 +810,42 @@ export function OrderFormModal({
             </div>
           </div>
 
-          {/* Resumo Financeiro no Rodapé do Form */}
+          {/* Resumo no Rodapé do Form */}
           <div className="bg-[#1C1F28] border border-white/10 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-4 sm:gap-8 text-xs">
-              <div>
-                <span className="text-slate-400 block text-[10px] uppercase">Serviços</span>
-                <span className="font-mono font-bold text-slate-200">
-                  R$ {subtotalServices.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </span>
-              </div>
-              <div>
-                <span className="text-slate-400 block text-[10px] uppercase">Peças</span>
-                <span className="font-mono font-bold text-slate-200">
-                  R$ {subtotalParts.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </span>
-              </div>
-              {discount > 0 && (
+            {!isOperator ? (
+              <div className="flex flex-wrap items-center gap-4 sm:gap-8 text-xs">
                 <div>
-                  <span className="text-emerald-400 block text-[10px] uppercase">Desconto</span>
-                  <span className="font-mono font-bold text-emerald-400">
-                    - R$ {Number(discount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  <span className="text-slate-400 block text-[10px] uppercase">Serviços</span>
+                  <span className="font-mono font-bold text-slate-200">
+                    R$ {subtotalServices.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
-              )}
-              <div className="border-l border-white/10 pl-4 sm:pl-8">
-                <span className="text-red-400 block text-[10px] uppercase font-bold">Total da OS</span>
-                <span className="font-mono text-lg font-black text-white">
-                  R$ {totalAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </span>
+                <div>
+                  <span className="text-slate-400 block text-[10px] uppercase">Peças</span>
+                  <span className="font-mono font-bold text-slate-200">
+                    R$ {subtotalParts.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                {discount > 0 && (
+                  <div>
+                    <span className="text-emerald-400 block text-[10px] uppercase">Desconto</span>
+                    <span className="font-mono font-bold text-emerald-400">
+                      - R$ {Number(discount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                )}
+                <div className="border-l border-white/10 pl-4 sm:pl-8">
+                  <span className="text-red-400 block text-[10px] uppercase font-bold">Total da OS</span>
+                  <span className="font-mono text-lg font-black text-white">
+                    R$ {totalAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="text-xs text-slate-400">
+                Após salvar, a tela de <strong className="text-white">Checklist de Entrada & Fotos de Evidência</strong> será aberta automaticamente.
+              </div>
+            )}
 
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <button
@@ -752,17 +860,8 @@ export function OrderFormModal({
                 disabled={isSubmitting}
                 className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider text-white bg-red-600 hover:bg-red-700 active:scale-95 transition-all shadow-[0_0_20px_rgba(239,68,68,0.3)] disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                {isSubmitting ? (
-                  <>
-                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span>Salvando...</span>
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>Salvar Ordem de Serviço</span>
-                  </>
-                )}
+                <CheckCircle2 className="w-4 h-4" />
+                <span>{isSubmitting ? 'Salvando...' : 'Salvar e Abrir Operação'}</span>
               </button>
             </div>
           </div>
