@@ -34,4 +34,8 @@ for (const signal of signals) {
   });
 }
 
-start();
+if (!process.env.VERCEL) {
+  start();
+}
+
+export default app;

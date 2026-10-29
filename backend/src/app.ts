@@ -13,7 +13,7 @@ import { adminRoutes } from './routes/admin.routes.js';
 export function buildApp() {
   const app = fastify({
     logger:
-      process.env.NODE_ENV === 'production'
+      process.env.NODE_ENV === 'production' || process.env.VERCEL
         ? true
         : {
             transport: {
@@ -35,14 +35,14 @@ export function buildApp() {
   // 2. CORS com Origens Permitidas
   const allowedOrigins = (
     process.env.CORS_ORIGIN ||
-    'http://localhost:5173,http://localhost:5174,http://localhost:80,http://localhost'
+    '*,http://localhost:5173,http://localhost:5174,http://localhost:80,http://localhost'
   )
     .split(',')
     .map((o) => o.trim());
 
   app.register(cors, {
     origin: (origin, cb) => {
-      // Permite requisições sem origin (como curl, postman, server-to-server) ou origens permitidas
+      // Permite requisições sem origin (mesma origem na Vercel, curl, server-to-server) ou origens permitidas
       if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
         cb(null, true);
         return;
