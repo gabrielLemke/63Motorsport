@@ -19,6 +19,33 @@ export function getStatusLabel(status: ServiceOrder['status']): string {
   }
 }
 
+export function getPhaseLabel(phase?: ServiceOrder['operationalPhase']): string {
+  switch (phase) {
+    case 'CHECKIN':
+      return '1. Check-in & Vistoria';
+    case 'DIAGNOSIS':
+      return '2. Diagnóstico';
+    case 'DISASSEMBLY':
+      return '3. Mecânica & Peças';
+    case 'TUNING':
+      return '4. Dinamômetro & ECU';
+    case 'QA_CHECKOUT':
+      return '5. Checklist Saída';
+    case 'READY':
+      return '6. Pronto / Finalizado';
+    default:
+      return '1. Check-in';
+  }
+}
+
+function getChecklistBadgeClass(status: string): string {
+  if (status === 'OK') return 'badge-ok';
+  if (status === 'CORRIGIDO') return 'badge-fixed';
+  if (status === 'ATENCAO' || status === 'PENDENTE') return 'badge-warn';
+  if (status === 'AVARIA') return 'badge-danger';
+  return 'badge-part';
+}
+
 export function printIsolatedOrder(order: ServiceOrder, options?: { hideFinancials?: boolean }) {
   const hideFinancials = Boolean(options?.hideFinancials);
 
@@ -58,6 +85,10 @@ export function printIsolatedOrder(order: ServiceOrder, options?: { hideFinancia
   const checklist = order.checklist;
   const evidences = order.evidences || [];
   const timeline = order.timeline || [];
+  const executedCount = order.items.filter((i) => i.executed !== false).length;
+  const checklistOkCount = (checklist?.items || []).filter(
+    (i) => i.exitStatus === 'OK' || i.exitStatus === 'CORRIGIDO' || i.entryStatus === 'OK'
+  ).length;
 
   const htmlContent = `
 <!DOCTYPE html>
@@ -86,7 +117,7 @@ export function printIsolatedOrder(order: ServiceOrder, options?: { hideFinancia
     .header {
       border-bottom: 3px solid #dc2626;
       padding-bottom: 10px;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
@@ -146,6 +177,34 @@ export function printIsolatedOrder(order: ServiceOrder, options?: { hideFinancia
       border-radius: 4px;
       display: inline-block;
       margin-top: 2px;
+    }
+    .exec-summary {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .exec-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-left: 3px solid #dc2626;
+      border-radius: 6px;
+      padding: 6px 8px;
+    }
+    .exec-label {
+      font-size: 8px;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: #64748b;
+      display: block;
+    }
+    .exec-val {
+      font-size: 11px;
+      font-weight: 900;
+      color: #0f172a;
+      font-family: monospace;
+      margin-top: 1px;
+      display: block;
     }
     .grid-2 {
       display: grid;
@@ -294,6 +353,18 @@ export function printIsolatedOrder(order: ServiceOrder, options?: { hideFinancia
       background: #dcfce7;
       color: #15803d;
     }
+    .badge-fixed {
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+    .badge-warn {
+      background: #fef3c7;
+      color: #b45309;
+    }
+    .badge-danger {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
     .evidence-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -421,6 +492,30 @@ export function printIsolatedOrder(order: ServiceOrder, options?: { hideFinancia
     </div>
   </div>
 
+  <!-- Quadro Resumo Executivo -->
+  <div class="exec-summary">
+    <div class="exec-box">
+      <span class="exec-label">Estágio Operacional</span>
+      <span class="exec-val">${getPhaseLabel(order.operationalPhase)}</span>
+    </div>
+    <div class="exec-box">
+      <span class="exec-label">Checklist Entrada/Saída</span>
+      <span class="exec-val">${checklistOkCount}/${checklist?.items.length || 12} Aprovados</span>
+    </div>
+    <div class="exec-box">
+      <span class="exec-label">Coisas Feitas no Carro</span>
+      <span class="exec-val">${executedCount}/${order.items.length} Executados</span>
+    </div>
+    <div class="exec-box">
+      <span class="exec-label">Acervo & Telemetria</span>
+      <span class="exec-val">${
+        order.dynoTelemetry?.afterHp
+          ? `${order.dynoTelemetry.afterHp} WHP (${evidences.length} fotos)`
+          : `${evidences.length} Fotos • ${timeline.length} Etapas`
+      }</span>
+    </div>
+  </div>
+
   <!-- Cards Cliente & Veículo -->
   <div class="grid-2">
     <div class="card">
@@ -509,8 +604,8 @@ export function printIsolatedOrder(order: ServiceOrder, options?: { hideFinancia
         <tr>
           <td style="font-family: monospace; color: #71717a;">#${String(i + 1).padStart(2, '0')}</td>
           <td><strong>${chk.label}</strong></td>
-          <td style="text-align: center;"><span class="badge badge-ok">${chk.entryStatus}</span></td>
-          <td style="text-align: center;"><span class="badge badge-ok">${chk.exitStatus}</span></td>
+          <td style="text-align: center;"><span class="badge ${getChecklistBadgeClass(chk.entryStatus)}">${chk.entryStatus}</span></td>
+          <td style="text-align: center;"><span class="badge ${getChecklistBadgeClass(chk.exitStatus)}">${chk.exitStatus}</span></td>
           <td style="color: #52525b;">${chk.notes || '-'}</td>
         </tr>
       `
@@ -550,7 +645,10 @@ export function printIsolatedOrder(order: ServiceOrder, options?: { hideFinancia
               ${item.type === 'SERVICE' ? 'SERVIÇO' : 'PEÇA'}
             </span>
           </td>
-          <td><strong>${item.description}</strong></td>
+          <td>
+            <strong>${item.description}</strong>
+            ${item.operator ? `<span style="color: #71717a; font-size: 8.5px; display: block;">Resp.: ${item.operator}</span>` : ''}
+          </td>
           <td style="text-align: center; font-family: monospace;">${item.quantity}</td>
           ${
             !hideFinancials
@@ -561,9 +659,9 @@ export function printIsolatedOrder(order: ServiceOrder, options?: { hideFinancia
                    'pt-BR',
                    { minimumFractionDigits: 2 }
                  )}</td>`
-              : `<td style="text-align: center;"><span class="badge badge-ok">${
-                  item.executed !== false ? 'EXECUTADO' : 'EM EXECUÇÃO'
-                }</span></td>`
+              : `<td style="text-align: center;"><span class="badge ${
+                  item.executed !== false ? 'badge-ok' : 'badge-warn'
+                }">${item.executed !== false ? 'CONCLUÍDO' : 'EM EXECUÇÃO'}</span></td>`
           }
         </tr>
       `
@@ -728,6 +826,218 @@ export function printIsolatedOrder(order: ServiceOrder, options?: { hideFinancia
       setTimeout(() => {
         iframe.remove();
       }, 2000);
+    }
+  }, 250);
+}
+
+/**
+ * Gera um Relatório Gerencial Consolidado (A4) de todas as Ordens de Serviço listadas no Grid
+ */
+export function printOrdersSummaryReport(
+  orders: ServiceOrder[],
+  options?: { hideFinancials?: boolean; filterLabel?: string }
+) {
+  const hideFinancials = Boolean(options?.hideFinancials);
+
+  const oldIframe = document.getElementById('summary-print-iframe');
+  if (oldIframe) oldIframe.remove();
+
+  const iframe = document.createElement('iframe');
+  iframe.id = 'summary-print-iframe';
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0';
+  iframe.style.bottom = '0';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.border = 'none';
+  iframe.style.visibility = 'hidden';
+
+  document.body.appendChild(iframe);
+  const doc = iframe.contentWindow?.document;
+  if (!doc) return;
+
+  const validOrders = orders.filter((o) => o.status !== 'CANCELLED');
+  const totalRevenue = validOrders.reduce((acc, o) => acc + (o.totalAmount || 0), 0);
+  const totalServicesRev = validOrders.reduce((acc, o) => acc + (o.subtotalServices || 0), 0);
+  const totalPartsRev = validOrders.reduce((acc, o) => acc + (o.subtotalParts || 0), 0);
+  const activeCount = orders.filter(
+    (o) => o.status === 'IN_PROGRESS' || o.status === 'WAITING_PARTS'
+  ).length;
+  const completedCount = orders.filter(
+    (o) => o.status === 'COMPLETED' || o.status === 'DELIVERED'
+  ).length;
+
+  const html = `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Relatório Geral de Oficina & Ordens de Serviço - 63 Motorsport</title>
+  <style>
+    @page { size: A4 landscape; margin: 10mm; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      color: #18181b;
+      background: #fff;
+      font-size: 10.5px;
+      padding: 6px;
+    }
+    .header {
+      border-bottom: 3px solid #dc2626;
+      padding-bottom: 8px;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .brand { font-size: 22px; font-weight: 900; font-style: italic; text-transform: uppercase; }
+    .brand span { color: #dc2626; font-weight: normal; }
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(${hideFinancials ? 4 : 5}, 1fr);
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .kpi-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-left: 3px solid #dc2626;
+      border-radius: 6px;
+      padding: 8px 10px;
+    }
+    .kpi-label { font-size: 8.5px; text-transform: uppercase; color: #64748b; font-weight: 700; display: block; }
+    .kpi-val { font-size: 15px; font-weight: 900; font-family: monospace; color: #0f172a; margin-top: 2px; display: block; }
+    table { width: 100%; border-collapse: collapse; font-size: 9.5px; }
+    th {
+      background: #18181b;
+      color: #ffffff;
+      text-transform: uppercase;
+      font-size: 8.5px;
+      padding: 6px 8px;
+      text-align: left;
+    }
+    td { padding: 6px 8px; border-bottom: 1px solid #e4e4e7; }
+    tr:nth-child(even) { background: #f8fafc; }
+    .mono { font-family: monospace; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div class="brand">63<span>MOTORSPORT</span> // RELATÓRIO GERENCIAL DE PÁTIO & OS</div>
+      <div style="font-size: 9.5px; color: #52525b;">
+        Emissão: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')} • Filtro: ${
+    options?.filterLabel || 'Todas as Ordens'
+  }
+      </div>
+    </div>
+    <div style="text-align: right; font-family: monospace; font-size: 10px;">
+      <strong>Total de Registros: ${orders.length} OS</strong>
+    </div>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <span class="kpi-label">Total de OS no Relatório</span>
+      <span class="kpi-val">${orders.length} veículos</span>
+    </div>
+    <div class="kpi-card">
+      <span class="kpi-label">Em Manutenção no Pátio</span>
+      <span class="kpi-val">${activeCount} ativos</span>
+    </div>
+    <div class="kpi-card">
+      <span class="kpi-label">Concluídos / Entregues</span>
+      <span class="kpi-val">${completedCount} finalizados</span>
+    </div>
+    ${
+      !hideFinancials
+        ? `
+    <div class="kpi-card">
+      <span class="kpi-label">Mão de Obra / Peças</span>
+      <span class="kpi-val" style="font-size: 11.5px;">Serv: R$ ${totalServicesRev.toLocaleString(
+        'pt-BR'
+      )} | Peças: R$ ${totalPartsRev.toLocaleString('pt-BR')}</span>
+    </div>
+    <div class="kpi-card">
+      <span class="kpi-label">Faturamento Total Consolidado</span>
+      <span class="kpi-val" style="color: #dc2626;">R$ ${totalRevenue.toLocaleString('pt-BR', {
+        minimumFractionDigits: 2
+      })}</span>
+    </div>
+    `
+        : `
+    <div class="kpi-card">
+      <span class="kpi-label">Total de Fotos de Evidência</span>
+      <span class="kpi-val">${orders.reduce((a, b) => a + (b.evidences?.length || 0), 0)} fotos</span>
+    </div>
+    `
+    }
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Nº OS</th>
+        <th>Entrada / Saída</th>
+        <th>Placa & Veículo</th>
+        <th>Proprietário / Contato</th>
+        <th>Box & Operador</th>
+        <th>Estágio Atual</th>
+        <th>Itens Feitos / Fotos</th>
+        ${!hideFinancials ? `<th style="text-align: right;">Valor Total (R$)</th>` : `<th>Status</th>`}
+      </tr>
+    </thead>
+    <tbody>
+      ${orders
+        .map((o) => {
+          const done = o.items.filter((i) => i.executed !== false).length;
+          return `
+        <tr>
+          <td class="mono"><strong>${o.osNumber}</strong></td>
+          <td class="mono">
+            Início: ${new Date(o.maintenanceStartedAt || o.createdAt).toLocaleDateString('pt-BR')}<br>
+            ${
+              o.maintenanceCompletedAt
+                ? `Fim: ${new Date(o.maintenanceCompletedAt).toLocaleDateString('pt-BR')}`
+                : 'Em aberto'
+            }
+          </td>
+          <td><strong>${o.vehicle.plate || 'S/PLACA'}</strong> — ${o.vehicle.model}</td>
+          <td>${o.client.name} (${o.client.phone})</td>
+          <td>${o.boxRamp || 'Rampa 01'}<br><span style="color:#64748b;">${o.leadOperator || '-'}</span></td>
+          <td><strong>${getPhaseLabel(o.operationalPhase)}</strong></td>
+          <td class="mono">${done}/${o.items.length} itens • ${o.evidences?.length || 0} fotos</td>
+          ${
+            !hideFinancials
+              ? `<td class="mono" style="text-align: right; font-weight: 700;">R$ ${o.totalAmount.toLocaleString(
+                  'pt-BR',
+                  { minimumFractionDigits: 2 }
+                )}</td>`
+              : `<td>${getStatusLabel(o.status)}</td>`
+          }
+        </tr>
+      `;
+        })
+        .join('')}
+    </tbody>
+  </table>
+</body>
+</html>
+  `;
+
+  doc.open();
+  doc.write(html);
+  doc.close();
+
+  setTimeout(() => {
+    try {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+    } catch {
+      window.print();
+    } finally {
+      setTimeout(() => iframe.remove(), 2000);
     }
   }, 250);
 }

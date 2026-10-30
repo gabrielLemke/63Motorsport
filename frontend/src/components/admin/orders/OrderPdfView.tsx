@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { ServiceOrder } from '../../../types/serviceOrder';
 import { UserRole } from '../../../types/admin';
-import { printIsolatedOrder, getStatusLabel } from './printOrder';
+import { printIsolatedOrder, getStatusLabel, getPhaseLabel } from './printOrder';
 
 interface OrderPdfViewProps {
   order: ServiceOrder;
@@ -70,6 +70,10 @@ export function OrderPdfView({ order, userRole = 'DIRECTOR', onClose }: OrderPdf
   const checklist = order.checklist;
   const evidences = order.evidences || [];
   const timeline = order.timeline || [];
+  const executedCount = order.items.filter((i) => i.executed !== false).length;
+  const checklistOkCount = (checklist?.items || []).filter(
+    (i) => i.exitStatus === 'OK' || i.exitStatus === 'CORRIGIDO' || i.entryStatus === 'OK'
+  ).length;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/85 backdrop-blur-md flex flex-col items-center justify-start p-2 sm:p-6 print:p-0 print:bg-white print:static print:inset-auto">
@@ -144,7 +148,7 @@ export function OrderPdfView({ order, userRole = 'DIRECTOR', onClose }: OrderPdf
         className="os-paper w-full max-w-4xl bg-white text-zinc-900 rounded-xl shadow-2xl p-6 sm:p-10 border border-zinc-200 print:shadow-none print:border-none print:p-0 print:m-0 font-['Inter',sans-serif]"
       >
         {/* Header Motorsport */}
-        <div className="border-b-2 border-red-600 pb-5 mb-6">
+        <div className="border-b-2 border-red-600 pb-5 mb-5">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <div className="flex items-center gap-2 mb-1">
@@ -189,6 +193,47 @@ export function OrderPdfView({ order, userRole = 'DIRECTOR', onClose }: OrderPdf
                 </div>
               )}
             </div>
+          </div>
+        </div>
+
+        {/* QUADRO RESUMO EXECUTIVO PARA FÁCIL COMPREENSÃO */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+          <div className="bg-zinc-50 border border-zinc-200 border-l-4 border-l-red-600 rounded-lg p-3">
+            <span className="text-[9px] font-bold uppercase text-zinc-500 block">
+              Estágio Operacional
+            </span>
+            <strong className="text-xs font-mono font-black text-zinc-900 mt-0.5 block">
+              {getPhaseLabel(order.operationalPhase)}
+            </strong>
+          </div>
+
+          <div className="bg-zinc-50 border border-zinc-200 border-l-4 border-l-emerald-600 rounded-lg p-3">
+            <span className="text-[9px] font-bold uppercase text-zinc-500 block">
+              Auditoria Checklist
+            </span>
+            <strong className="text-xs font-mono font-black text-emerald-700 mt-0.5 block">
+              {checklistOkCount}/{checklist?.items.length || 12} Itens Aprovados
+            </strong>
+          </div>
+
+          <div className="bg-zinc-50 border border-zinc-200 border-l-4 border-l-blue-600 rounded-lg p-3">
+            <span className="text-[9px] font-bold uppercase text-zinc-500 block">
+              Coisas Feitas no Carro
+            </span>
+            <strong className="text-xs font-mono font-black text-zinc-900 mt-0.5 block">
+              {executedCount} de {order.items.length} Concluídos
+            </strong>
+          </div>
+
+          <div className="bg-zinc-50 border border-zinc-200 border-l-4 border-l-amber-500 rounded-lg p-3">
+            <span className="text-[9px] font-bold uppercase text-zinc-500 block">
+              Acervo & Telemetria
+            </span>
+            <strong className="text-xs font-mono font-black text-zinc-900 mt-0.5 block">
+              {order.dynoTelemetry?.afterHp
+                ? `${order.dynoTelemetry.afterHp} WHP (${evidences.length} fotos)`
+                : `${evidences.length} Fotos • ${timeline.length} Etapas`}
+            </strong>
           </div>
         </div>
 
@@ -354,11 +399,31 @@ export function OrderPdfView({ order, userRole = 'DIRECTOR', onClose }: OrderPdf
                       #{String(idx + 1).padStart(2, '0')}
                     </td>
                     <td className="py-1.5 px-2.5 font-semibold text-zinc-900">{chk.label}</td>
-                    <td className="py-1.5 px-2.5 text-center font-mono text-[10px] font-bold text-zinc-700">
-                      {chk.entryStatus}
+                    <td className="py-1.5 px-2.5 text-center">
+                      <span
+                        className={`inline-block px-2 py-0.5 rounded font-mono text-[9px] font-bold uppercase ${
+                          chk.entryStatus === 'OK'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : chk.entryStatus === 'ATENCAO'
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}
+                      >
+                        {chk.entryStatus}
+                      </span>
                     </td>
-                    <td className="py-1.5 px-2.5 text-center font-mono text-[10px] font-bold text-emerald-700">
-                      {chk.exitStatus}
+                    <td className="py-1.5 px-2.5 text-center">
+                      <span
+                        className={`inline-block px-2 py-0.5 rounded font-mono text-[9px] font-bold uppercase ${
+                          chk.exitStatus === 'OK'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : chk.exitStatus === 'CORRIGIDO'
+                            ? 'bg-blue-100 text-blue-800'
+                            : 'bg-amber-100 text-amber-800'
+                        }`}
+                      >
+                        {chk.exitStatus}
+                      </span>
                     </td>
                     <td className="py-1.5 px-2.5 text-zinc-600">{chk.notes || '-'}</td>
                   </tr>
@@ -408,7 +473,12 @@ export function OrderPdfView({ order, userRole = 'DIRECTOR', onClose }: OrderPdf
                     </span>
                   </td>
                   <td className="py-2.5 px-3 text-zinc-900 font-medium">
-                    {item.description}
+                    <div>{item.description}</div>
+                    {item.operator && (
+                      <div className="text-[10px] text-zinc-500 font-mono">
+                        Resp.: {item.operator}
+                      </div>
+                    )}
                   </td>
                   <td className="py-2.5 px-3 text-center font-mono text-zinc-700">
                     {item.quantity}

@@ -14,7 +14,8 @@ import {
   CheckCircle2,
   RefreshCw,
   Gauge,
-  Fuel
+  Fuel,
+  MessageCircle
 } from 'lucide-react';
 import { ServiceOrder, OperationalPhase } from '../../types/serviceOrder';
 import { UserRole } from '../../types/admin';
@@ -28,32 +29,44 @@ interface WorkshopOperationsViewProps {
   userName: string;
 }
 
-const PHASE_BADGE: Record<OperationalPhase, { label: string; color: string }> = {
-  CHECKIN: {
+const PHASE_STEPS: Array<{ key: OperationalPhase; short: string; label: string; color: string }> = [
+  {
+    key: 'CHECKIN',
+    short: '1. Check-in',
     label: '1. Check-in & Vistoria',
     color: 'bg-blue-500/15 text-blue-400 border-blue-500/30'
   },
-  DIAGNOSIS: {
+  {
+    key: 'DIAGNOSIS',
+    short: '2. Diagnóstico',
     label: '2. Diagnóstico & Scanner',
     color: 'bg-amber-500/15 text-amber-400 border-amber-500/30'
   },
-  DISASSEMBLY: {
+  {
+    key: 'DISASSEMBLY',
+    short: '3. Mecânica',
     label: '3. Execução Mecânica',
     color: 'bg-orange-500/15 text-orange-400 border-orange-500/30'
   },
-  TUNING: {
+  {
+    key: 'TUNING',
+    short: '4. Dinamômetro',
     label: '4. Acerto ECU & Dinamômetro',
     color: 'bg-red-500/15 text-red-400 border-red-500/30'
   },
-  QA_CHECKOUT: {
+  {
+    key: 'QA_CHECKOUT',
+    short: '5. Vistoria Saída',
     label: '5. Checklist Final & Rodagem',
     color: 'bg-purple-500/15 text-purple-400 border-purple-500/30'
   },
-  READY: {
+  {
+    key: 'READY',
+    short: '6. Pronto',
     label: '6. Manutenção Concluída',
     color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
   }
-};
+];
 
 export function WorkshopOperationsView({ userRole, userName }: WorkshopOperationsViewProps) {
   const [orders, setOrders] = useState<ServiceOrder[]>([]);
@@ -95,6 +108,32 @@ export function WorkshopOperationsView({ userRole, userName }: WorkshopOperation
       setOperationalModalState((prev) => (prev ? { ...prev, order: updated } : null));
     }
     return updated;
+  };
+
+  // Avança ou troca a fase operacional direto do card do pátio em 1 clique!
+  const handleQuickChangePhase = async (order: ServiceOrder, nextPhase: OperationalPhase) => {
+    const patch: Partial<ServiceOrder> = {
+      operationalPhase: nextPhase,
+      status: nextPhase === 'READY' ? 'COMPLETED' : order.status === 'DRAFT' ? 'IN_PROGRESS' : order.status
+    };
+    if (nextPhase === 'READY' && !order.maintenanceCompletedAt) {
+      patch.maintenanceCompletedAt = new Date().toISOString();
+    }
+    await handleSaveOperationalChanges(order.id, patch);
+  };
+
+  // Marca/desmarca tarefa feita direto do card do pátio em 1 clique!
+  const handleQuickToggleTask = async (order: ServiceOrder, itemId: string) => {
+    const updatedItems = order.items.map((item) =>
+      item.id === itemId
+        ? {
+            ...item,
+            executed: !item.executed,
+            operator: !item.executed ? userName : item.operator
+          }
+        : item
+    );
+    await handleSaveOperationalChanges(order.id, { items: updatedItems });
   };
 
   const handleCreateNewCheckin = async (payload: Partial<ServiceOrder>) => {
@@ -142,7 +181,7 @@ export function WorkshopOperationsView({ userRole, userName }: WorkshopOperation
             </span>
           </div>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Gestão em tempo real de entrada e saída de veículos, checklist de vistoria, fotos de evidência e histórico completo do início ao fim da manutenção
+            Toque diretamente nas etapas ou nos itens de cada carro para atualizar o progresso em 1 clique
           </p>
         </div>
 
@@ -162,7 +201,7 @@ export function WorkshopOperationsView({ userRole, userName }: WorkshopOperation
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider text-white bg-red-600 hover:bg-red-700 active:scale-95 transition-all shadow-[0_0_20px_rgba(239,68,68,0.3)]"
           >
             <Plus className="w-4 h-4" />
-            <span>+ Receber Veículo (Iniciar Manutenção)</span>
+            <span>+ Receber Veículo (Check-in Rápido)</span>
           </button>
         </div>
       </div>
@@ -225,8 +264,8 @@ export function WorkshopOperationsView({ userRole, userName }: WorkshopOperation
 
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
           {[
-            { key: 'ALL', label: 'Todos os Veículos' },
-            { key: 'ACTIVE', label: 'Em Operação no Pátio' },
+            { key: 'ALL', label: `Todos (${orders.length})` },
+            { key: 'ACTIVE', label: `No Pátio (${activeRampCount})` },
             { key: 'CHECKIN', label: '1. Check-in / Vistoria' },
             { key: 'DIAGNOSIS', label: '2. Diagnóstico' },
             { key: 'DISASSEMBLY', label: '3. Mecânica & Peças' },
@@ -278,36 +317,46 @@ export function WorkshopOperationsView({ userRole, userName }: WorkshopOperation
         <div className="grid grid-cols-1 gap-5">
           {filteredOrders.map((order) => {
             const phase = order.operationalPhase || 'CHECKIN';
-            const badge = PHASE_BADGE[phase] || PHASE_BADGE.CHECKIN;
+            const currentPhaseIdx = PHASE_STEPS.findIndex((p) => p.key === phase);
+            const badge = PHASE_STEPS[currentPhaseIdx] || PHASE_STEPS[0];
             const evidencesList = order.evidences || [];
             const timelineList = order.timeline || [];
             const checklistItems = order.checklist?.items || [];
             const checkedCount = checklistItems.filter(
               (i) => i.entryStatus === 'OK' || i.exitStatus === 'OK' || i.exitStatus === 'CORRIGIDO'
             ).length;
+            const alertItemsCount = checklistItems.filter(
+              (i) => i.entryStatus === 'AVARIA' || i.entryStatus === 'ATENCAO'
+            ).length;
             const executedCount = order.items.filter((i) => i.executed).length;
             const latestLog = timelineList[timelineList.length - 1];
+
+            // Cálculo de progresso geral do veículo (0 a 100%)
+            const phaseProgress = ((currentPhaseIdx + 1) / PHASE_STEPS.length) * 50;
+            const tasksProgress =
+              order.items.length > 0 ? (executedCount / order.items.length) * 50 : 50;
+            const totalProgress = Math.min(100, Math.round(phaseProgress + tasksProgress));
 
             return (
               <div
                 key={order.id}
-                className="bg-[#12141A] border border-white/10 hover:border-white/20 rounded-2xl p-4 sm:p-6 shadow-xl transition-all space-y-5"
+                className="bg-[#12141A] border border-white/10 hover:border-white/20 rounded-2xl p-4 sm:p-6 shadow-xl transition-all space-y-4"
               >
                 {/* Topo do Card: Identificação do Carro, Cliente, Box e Fase */}
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-4 border-b border-white/10">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-white/10">
                   <div className="space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-mono text-xs font-black px-2.5 py-0.5 rounded bg-red-600 text-white">
                         {order.osNumber}
                       </span>
-                      <h2 className="text-lg sm:text-xl font-black text-white uppercase tracking-tight font-['Montserrat']">
-                        {order.vehicle.model}
-                      </h2>
                       {order.vehicle.plate && (
-                        <span className="font-mono text-xs font-bold px-2.5 py-0.5 rounded bg-[#1B1F2A] text-amber-400 border border-amber-500/30">
+                        <span className="font-mono text-xs font-black px-2.5 py-0.5 rounded bg-[#1B1F2A] text-amber-400 border border-amber-500/40">
                           {order.vehicle.plate}
                         </span>
                       )}
+                      <h2 className="text-lg sm:text-xl font-black text-white uppercase tracking-tight font-['Montserrat']">
+                        {order.vehicle.model}
+                      </h2>
                       <span
                         className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase border ${badge.color}`}
                       >
@@ -318,19 +367,20 @@ export function WorkshopOperationsView({ userRole, userName }: WorkshopOperation
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
                       <span className="flex items-center gap-1">
                         <User className="w-3.5 h-3.5 text-red-500" />
-                        Cliente: <strong className="text-slate-200">{order.client.name}</strong> ({order.client.phone})
+                        Cliente: <strong className="text-slate-200">{order.client.name}</strong> (
+                        {order.client.phone})
                       </span>
                       <span className="flex items-center gap-1">
                         <Wrench className="w-3.5 h-3.5 text-emerald-400" />
-                        Alocação: <strong className="text-emerald-400">{order.boxRamp || 'Rampa 01'}</strong>
+                        Box: <strong className="text-emerald-400">{order.boxRamp || 'Rampa 01'}</strong>
                       </span>
                       <span>
-                        Operador Líder: <strong className="text-slate-200">{order.leadOperator || userName}</strong>
+                        Mecânico: <strong className="text-slate-200">{order.leadOperator || userName}</strong>
                       </span>
                     </div>
                   </div>
 
-                  {/* Marcos de Início e Fim da Manutenção */}
+                  {/* Marcos de Início e Fim + Progresso */}
                   <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono">
                     <div className="px-3 py-1.5 rounded-xl bg-[#171A24] border border-white/5 flex items-center gap-1.5 text-slate-300">
                       <Clock className="w-3.5 h-3.5 text-amber-400" />
@@ -367,17 +417,50 @@ export function WorkshopOperationsView({ userRole, userName }: WorkshopOperation
                                 hour: '2-digit',
                                 minute: '2-digit'
                               })
-                            : 'Em Manutenção'}
+                            : `${totalProgress}% Concluído`}
                         </strong>
                       </span>
                     </div>
                   </div>
                 </div>
 
-                {/* Grid Central: Resumo de Checklist, Coisas Feitas, Evidências e Último Histórico */}
+                {/* BARRA DE MUDANÇA DE ESTÁGIO EM 1 TOQUE DIRETO NO PÁTIO */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[10px] font-mono uppercase text-slate-400">
+                    <span>Avanço Rápido de Etapa no Pátio (1 Clique):</span>
+                    <span className="text-emerald-400 font-bold">{totalProgress}% Progresso Total</span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-6 gap-1.5">
+                    {PHASE_STEPS.map((step, idx) => {
+                      const isCurrent = step.key === phase;
+                      const isDone = idx < currentPhaseIdx;
+                      return (
+                        <button
+                          key={step.key}
+                          type="button"
+                          onClick={() => handleQuickChangePhase(order, step.key)}
+                          className={`py-1.5 px-2 rounded-lg text-[11px] font-bold uppercase transition-all border text-center truncate ${
+                            isCurrent
+                              ? 'bg-red-600 text-white border-red-500 shadow-md'
+                              : isDone
+                              ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/20'
+                              : 'bg-[#161922] text-slate-400 border-white/5 hover:text-white hover:border-white/20'
+                          }`}
+                        >
+                          {isDone ? `✓ ${step.short}` : step.short}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Grid Central: Resumo de Checklist, Coisas Feitas (Clicáveis!) e Fotos */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {/* Coluna 1: Resumo do Checklist de Entrada/Saída */}
-                  <div className="bg-[#161922] border border-white/5 rounded-xl p-3.5 space-y-2">
+                  <div
+                    onClick={() => setOperationalModalState({ order, tab: 'checklist' })}
+                    className="bg-[#161922] hover:bg-[#1B1F2B] border border-white/5 hover:border-white/15 rounded-xl p-3.5 space-y-2 cursor-pointer transition-all"
+                  >
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-bold uppercase tracking-wider text-red-400 flex items-center gap-1.5">
                         <ClipboardCheck className="w-4 h-4" />
@@ -399,39 +482,61 @@ export function WorkshopOperationsView({ userRole, userName }: WorkshopOperation
                       </div>
                     </div>
 
-                    <p className="text-[11px] text-slate-400 truncate">
-                      Scanner OBD: <span className="text-slate-200">{order.checklist?.obdFaultCodesEntry || '0 falhas'}</span>
-                    </p>
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-slate-400 truncate">
+                        OBD: <span className="text-slate-200">{order.checklist?.obdFaultCodesEntry || '0 falhas'}</span>
+                      </span>
+                      {alertItemsCount > 0 && (
+                        <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono text-[10px] font-bold shrink-0">
+                          {alertItemsCount} atenção
+                        </span>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Coluna 2: Coisas Feitas no Carro & Última Etapa */}
+                  {/* Coluna 2: Coisas Feitas no Carro (Checkboxes diretos no card!) */}
                   <div className="bg-[#161922] border border-white/5 rounded-xl p-3.5 space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-bold uppercase tracking-wider text-red-400 flex items-center gap-1.5">
                         <CheckCircle2 className="w-4 h-4" />
-                        Coisas Feitas no Carro
+                        Coisas Feitas (Toque p/ Marcar)
                       </span>
-                      <span className="text-xs font-mono font-bold text-slate-200">
-                        {executedCount}/{order.items.length} itens
+                      <span className="text-xs font-mono font-bold text-emerald-400">
+                        {executedCount}/{order.items.length} feitos
                       </span>
                     </div>
 
-                    <div className="space-y-1 max-h-16 overflow-y-auto pr-1">
-                      {order.items.slice(0, 3).map((item) => (
-                        <div key={item.id} className="flex items-center gap-1.5 text-xs">
+                    <div className="space-y-1.5 max-h-24 overflow-y-auto pr-1">
+                      {order.items.map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => handleQuickToggleTask(order, item.id)}
+                          className="w-full text-left flex items-center gap-2 text-xs py-1 px-2 rounded-lg bg-[#0E1016] hover:bg-white/5 border border-white/5 transition-colors"
+                        >
                           <span
-                            className={`w-2 h-2 rounded-full shrink-0 ${
-                              item.executed ? 'bg-emerald-400' : 'bg-amber-400'
+                            className={`w-3.5 h-3.5 rounded flex items-center justify-center text-[9px] font-bold shrink-0 ${
+                              item.executed
+                                ? 'bg-emerald-500 text-black'
+                                : 'border border-slate-500 text-transparent'
                             }`}
-                          />
-                          <span className="text-slate-200 truncate">{item.description}</span>
-                        </div>
+                          >
+                            ✓
+                          </span>
+                          <span
+                            className={`truncate ${
+                              item.executed ? 'text-emerald-300 line-through' : 'text-slate-200'
+                            }`}
+                          >
+                            {item.description}
+                          </span>
+                        </button>
                       ))}
                     </div>
 
                     {latestLog && (
                       <div className="pt-1 border-t border-white/5 text-[11px] text-slate-400 truncate">
-                        Último registro: <strong className="text-slate-200">{latestLog.title}</strong>
+                        Último: <strong className="text-slate-200">{latestLog.title}</strong>
                       </div>
                     )}
                   </div>
@@ -467,11 +572,24 @@ export function WorkshopOperationsView({ userRole, userName }: WorkshopOperation
                             />
                           </button>
                         ))}
+                        <button
+                          type="button"
+                          onClick={() => setOperationalModalState({ order, tab: 'evidences' })}
+                          className="w-12 h-12 rounded-lg border border-dashed border-white/20 hover:border-red-500 flex items-center justify-center text-slate-400 hover:text-red-400 shrink-0"
+                          title="Adicionar nova foto"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
                       </div>
                     ) : (
-                      <p className="text-[11px] text-slate-500 italic py-2">
-                        Nenhuma foto anexada ainda. Clique em "Fotos & Evidências" para registrar.
-                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setOperationalModalState({ order, tab: 'evidences' })}
+                        className="w-full py-2.5 rounded-lg border border-dashed border-red-500/30 bg-red-600/5 hover:bg-red-600/15 text-xs font-bold text-red-300 flex items-center justify-center gap-1.5 transition-colors"
+                      >
+                        <Camera className="w-3.5 h-3.5" />
+                        <span>+ Tirar 1ª Foto de Entrada</span>
+                      </button>
                     )}
 
                     <div className="flex items-center gap-2 text-[10px] font-mono text-slate-400">
@@ -493,7 +611,7 @@ export function WorkshopOperationsView({ userRole, userName }: WorkshopOperation
                       className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-red-600 hover:bg-red-700 text-white shadow-md transition-all"
                     >
                       <Wrench className="w-3.5 h-3.5" />
-                      <span>Controle & Coisas Feitas</span>
+                      <span>Painel Completo</span>
                     </button>
 
                     <button
@@ -502,7 +620,7 @@ export function WorkshopOperationsView({ userRole, userName }: WorkshopOperation
                       className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-[#1B1F2A] hover:bg-[#252A38] text-slate-200 border border-white/10 transition-colors"
                     >
                       <ClipboardCheck className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>Checklist do Carro</span>
+                      <span>Checklist</span>
                     </button>
 
                     <button
@@ -511,7 +629,7 @@ export function WorkshopOperationsView({ userRole, userName }: WorkshopOperation
                       className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-[#1B1F2A] hover:bg-[#252A38] text-slate-200 border border-white/10 transition-colors"
                     >
                       <Camera className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Fotos Evidências ({evidencesList.length})</span>
+                      <span>+ Foto ({evidencesList.length})</span>
                     </button>
 
                     <button
@@ -524,14 +642,37 @@ export function WorkshopOperationsView({ userRole, userName }: WorkshopOperation
                     </button>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => setPdfOrder(order)}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 transition-colors"
-                  >
-                    <Printer className="w-3.5 h-3.5 text-red-500" />
-                    <span>Emitir Dossiê / PDF</span>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const cleanPhone = order.client.phone.replace(/\D/g, '');
+                        const msg = encodeURIComponent(
+                          `🏁 *63 MOTORSPORT // ATUALIZAÇÃO DO SEU VEÍCULO*\n` +
+                            `Olá *${order.client.name}*!\n\n` +
+                            `O seu *${order.vehicle.model}* (${order.vehicle.plate || 'OS ' + order.osNumber}) encontra-se na etapa: *${badge.label}* (${totalProgress}% concluído).\n` +
+                            `✅ Serviços executados: ${executedCount}/${order.items.length}\n` +
+                            `📸 Fotos registradas: ${evidencesList.length}\n\n` +
+                            `Qualquer novidade avisamos por aqui!`
+                        );
+                        window.open(`https://wa.me/55${cleanPhone}?text=${msg}`, '_blank');
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-emerald-600/20 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-500/30 transition-colors"
+                      title="Enviar status atual para o WhatsApp do cliente em 1 clique"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Avisar Cliente</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setPdfOrder(order)}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 transition-colors"
+                    >
+                      <Printer className="w-3.5 h-3.5 text-red-500" />
+                      <span>Laudo / PDF</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             );

@@ -17,7 +17,8 @@ import {
   ShieldCheck,
   Upload,
   Eye,
-  Printer
+  Printer,
+  Sparkles
 } from 'lucide-react';
 import {
   ServiceOrder,
@@ -56,6 +57,94 @@ const RAMP_OPTIONS = [
   'Box 03 - Dinamômetro Servitec 4x4',
   'Rampa 04 - Freios, Suspensão & Track Prep',
   'Pátio Interno - Aguardando Peças / Entrega'
+];
+
+const QUICK_WORK_PRESETS: Array<{ type: 'SERVICE' | 'PART'; label: string; description: string }> = [
+  {
+    type: 'SERVICE',
+    label: '+ Leitura Scanner OBD (0 Falhas)',
+    description: 'Diagnóstico eletrônico completo via Scanner OBD-II (0 códigos de falha ativos)'
+  },
+  {
+    type: 'SERVICE',
+    label: '+ Teste de Pressurização (Boost Leak)',
+    description: 'Teste de estanqueidade do sistema de pressurização/intercooler sem vazamentos'
+  },
+  {
+    type: 'SERVICE',
+    label: '+ Instalação Downpipe & Intake',
+    description: 'Montagem física de Downpipe em Inox 304 e sistema de admissão (Intake)'
+  },
+  {
+    type: 'SERVICE',
+    label: '+ Troca de Velas & Revisão Ignição',
+    description: 'Substituição de jogo de velas Iridium com aferição de gap e inspeção de bobinas'
+  },
+  {
+    type: 'SERVICE',
+    label: '+ Acerto ECU/TCU no Dinamômetro',
+    description: 'Calibração customizada de mapa no Dinamômetro Servitec 4x4 (AFR, Boost e Ignição aferidos)'
+  },
+  {
+    type: 'PART',
+    label: '+ Fluido de Freio Motul RBF 660',
+    description: 'Aplicação e sangria completa com Fluido de Freio Racing Motul RBF 660'
+  },
+  {
+    type: 'PART',
+    label: '+ Kit Óleo Motul 8100 + Filtro',
+    description: 'Troca de óleo 100% sintético Motul 8100 5W40 + Filtro de Óleo Original'
+  }
+];
+
+const QUICK_PHOTO_CAPTIONS: Array<{
+  phase: EvidencePhase;
+  category: string;
+  title: string;
+  notes: string;
+}> = [
+  {
+    phase: 'ENTRY',
+    category: 'Vistoria Externa & Lataria',
+    title: 'Recepção do Veículo na Rampa (Frente & Placa)',
+    notes: 'Registro visual do veículo na chegada à oficina antes do início da intervenção.'
+  },
+  {
+    phase: 'ENTRY',
+    category: 'Scanner OBD-II & Eletrônica',
+    title: 'Painel de Instrumentos, Hodômetro (Km) & Nível de Combustível',
+    notes: 'Conferência de quilometragem de entrada e luzes de advertência no painel.'
+  },
+  {
+    phase: 'ENTRY',
+    category: 'Avaria Prévia Encontrada',
+    title: 'Detalhe de Marca / Risco Prévio na Recepção',
+    notes: 'Evidência registrada no check-in antes do início dos trabalhos.'
+  },
+  {
+    phase: 'PROCESS',
+    category: 'Cofre do Motor & Pressurização',
+    title: 'Cofre do Motor Durante a Manutenção / Preparação',
+    notes: 'Inspeção de componentes, linhas de vácuo/pressurização e conexões.'
+  },
+  {
+    phase: 'PROCESS',
+    category: 'Peça Aplicada / Desmontagem',
+    title: 'Peça de Performance Instalada e Torqueada no Veículo',
+    notes: 'Componente montado seguindo especificação técnica da 63 Motorsport.'
+  },
+  {
+    phase: 'EXIT',
+    category: 'Gráfico Dinamômetro Servitec',
+    title: 'Resultado de Aferição no Dinamômetro Servitec 4x4',
+    notes: 'Curvas de potência (WHP) e torque (kgfm) validadas após calibração.'
+  },
+  {
+    phase: 'EXIT',
+    category: 'Veículo Finalizado para Entrega',
+    title: 'Veículo Revisado, Limpo e Pronto para Entrega ao Cliente',
+    notes: 'Checklist de saída aprovado em 100% dos itens.'
+  }
 ];
 
 /**
@@ -133,7 +222,7 @@ export function OrderOperationalModal({
   const [evidences, setEvidences] = useState(order.evidences || []);
   const [evidenceFilter, setEvidenceFilter] = useState<'ALL' | EvidencePhase>('ALL');
   const [newEvPhase, setNewEvPhase] = useState<EvidencePhase>('ENTRY');
-  const [newEvCategory, setNewEvCategory] = useState('Vistoria Externa');
+  const [newEvCategory, setNewEvCategory] = useState('Vistoria Externa & Lataria');
   const [newEvTitle, setNewEvTitle] = useState('');
   const [newEvNotes, setNewEvNotes] = useState('');
   const [newEvPreview, setNewEvPreview] = useState<string>('');
@@ -150,11 +239,14 @@ export function OrderOperationalModal({
 
   const showFeedback = (msg: string) => {
     setSaveFeedback(msg);
-    setTimeout(() => setSaveFeedback(null), 3000);
+    setTimeout(() => setSaveFeedback(null), 2800);
   };
 
   // Persistência unificada
-  const handlePersistChanges = async (customPatch?: Partial<ServiceOrder>, message = 'Dados operacionais salvos!') => {
+  const handlePersistChanges = async (
+    customPatch?: Partial<ServiceOrder>,
+    message = 'Salvo automaticamente na nuvem!'
+  ) => {
     setIsSaving(true);
     try {
       const payload: Partial<ServiceOrder> = {
@@ -182,6 +274,15 @@ export function OrderOperationalModal({
     } finally {
       setIsSaving(false);
     }
+  };
+
+  // Mudar fase com auto-save imediato
+  const handleSelectPhase = async (nextPhase: OperationalPhase) => {
+    setOperationalPhase(nextPhase);
+    await handlePersistChanges(
+      { operationalPhase: nextPhase },
+      `Estágio atualizado para: ${PHASE_STEPS.find((s) => s.key === nextPhase)?.short}`
+    );
   };
 
   // Ação rápida: Iniciar Manutenção Agora
@@ -219,7 +320,14 @@ export function OrderOperationalModal({
     const updatedChecklist = {
       ...checklist,
       exitCompletedAt: nowIso,
-      inspectorExit: userName
+      inspectorExit: userName,
+      obdFaultCodesExit: checklist.obdFaultCodesExit || '0 códigos de falha (100% limpo)',
+      items: checklist.items.map((item) => ({
+        ...item,
+        exitStatus: (item.entryStatus === 'AVARIA' || item.entryStatus === 'ATENCAO'
+          ? 'CORRIGIDO'
+          : 'OK') as ChecklistExitStatus
+      }))
     };
     setChecklist(updatedChecklist);
 
@@ -236,7 +344,7 @@ export function OrderOperationalModal({
     };
     const updatedTimeline = [...timeline, exitLog];
     setTimeline(updatedTimeline);
-    const updatedItems = items.map((i) => ({ ...i, executed: true }));
+    const updatedItems = items.map((i) => ({ ...i, executed: true, operator: i.operator || userName }));
     setItems(updatedItems);
 
     await handlePersistChanges(
@@ -252,23 +360,56 @@ export function OrderOperationalModal({
     );
   };
 
-  // Marcar/desmarcar execução de item de serviço ou peça
-  const handleToggleItemExecuted = (itemId: string) => {
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === itemId
-          ? {
-              ...item,
-              executed: !item.executed,
-              operator: !item.executed ? userName : item.operator
-            }
-          : item
-      )
+  // Marcar/desmarcar execução de item de serviço ou peça (com Auto-Save!)
+  const handleToggleItemExecuted = async (itemId: string) => {
+    const updatedItems = items.map((item) =>
+      item.id === itemId
+        ? {
+            ...item,
+            executed: !item.executed,
+            operator: !item.executed ? userName : item.operator
+          }
+        : item
+    );
+    setItems(updatedItems);
+    await handlePersistChanges({ items: updatedItems }, 'Status do serviço atualizado!');
+  };
+
+  // Adicionar tarefa em 1 clique a partir dos atalhos rápidos
+  const handleQuickAddWorkPreset = async (preset: (typeof QUICK_WORK_PRESETS)[number]) => {
+    const newItem = {
+      id: `item-${Date.now()}`,
+      type: preset.type,
+      description: preset.description,
+      quantity: 1,
+      unitPrice: 0,
+      totalPrice: 0,
+      executed: true,
+      operator: userName
+    };
+    const updatedItems = [...items, newItem];
+    setItems(updatedItems);
+
+    const autoLog = {
+      id: `tl-${Date.now() + 1}`,
+      stage: 'MECHANICAL' as TimelineStage,
+      title: `${preset.type === 'SERVICE' ? 'Serviço Executado' : 'Peça Aplicada'}: ${preset.description}`,
+      description: `Registrado em 1 toque por ${userName} (${boxRamp}).`,
+      operator: userName,
+      timestamp: new Date().toISOString(),
+      durationMinutes: 30
+    };
+    const updatedTimeline = [...timeline, autoLog];
+    setTimeline(updatedTimeline);
+
+    await handlePersistChanges(
+      { items: updatedItems, timeline: updatedTimeline },
+      'Adicionado às Coisas Feitas e salvo na Linha do Tempo!'
     );
   };
 
-  // Adicionar nova tarefa/peça executada pela operação
-  const handleAddOperationalTask = (e: FormEvent) => {
+  // Adicionar nova tarefa/peça digitada manualmente
+  const handleAddOperationalTask = async (e: FormEvent) => {
     e.preventDefault();
     if (!newTaskDesc.trim()) return;
 
@@ -282,9 +423,9 @@ export function OrderOperationalModal({
       executed: true,
       operator: userName
     };
-    setItems((prev) => [...prev, newItem]);
+    const updatedItems = [...items, newItem];
+    setItems(updatedItems);
 
-    // Também adiciona automaticamente na linha do tempo!
     const autoLog = {
       id: `tl-${Date.now() + 1}`,
       stage: 'MECHANICAL' as TimelineStage,
@@ -294,9 +435,14 @@ export function OrderOperationalModal({
       timestamp: new Date().toISOString(),
       durationMinutes: 30
     };
-    setTimeline((prev) => [...prev, autoLog]);
+    const updatedTimeline = [...timeline, autoLog];
+    setTimeline(updatedTimeline);
     setNewTaskDesc('');
-    showFeedback('Item adicionado às coisas feitas no carro e na Linha do Tempo!');
+
+    await handlePersistChanges(
+      { items: updatedItems, timeline: updatedTimeline },
+      'Item registrado no carro e salvo na Linha do Tempo!'
+    );
   };
 
   // Atualizar item do checklist
@@ -311,36 +457,63 @@ export function OrderOperationalModal({
     }));
   };
 
-  const handleApproveAllExitChecklist = () => {
-    setChecklist((prev) => ({
-      ...prev,
-      inspectorExit: userName,
-      exitCompletedAt: new Date().toISOString(),
-      items: prev.items.map((item) => ({
+  const handleApproveAllEntryChecklist = async () => {
+    const updatedChecklist = {
+      ...checklist,
+      inspectorEntry: userName,
+      entryCompletedAt: new Date().toISOString(),
+      obdFaultCodesEntry: checklist.obdFaultCodesEntry || '0 códigos de falha na entrada',
+      items: checklist.items.map((item) => ({
         ...item,
-        exitStatus: item.entryStatus === 'AVARIA' || item.entryStatus === 'ATENCAO' ? 'CORRIGIDO' : 'OK'
+        entryStatus: 'OK' as ChecklistEntryStatus
       }))
-    }));
-    showFeedback('Checklist de saída marcado como 100% revisado!');
+    };
+    setChecklist(updatedChecklist);
+    await handlePersistChanges(
+      { checklist: updatedChecklist },
+      'Checklist de Entrada marcado como 100% OK e salvo!'
+    );
   };
 
-  const handleAddCustomChecklistItem = () => {
+  const handleApproveAllExitChecklist = async () => {
+    const updatedChecklist = {
+      ...checklist,
+      inspectorExit: userName,
+      exitCompletedAt: new Date().toISOString(),
+      obdFaultCodesExit: checklist.obdFaultCodesExit || '0 códigos de falha (100% limpo)',
+      items: checklist.items.map((item) => ({
+        ...item,
+        exitStatus: (item.entryStatus === 'AVARIA' || item.entryStatus === 'ATENCAO'
+          ? 'CORRIGIDO'
+          : 'OK') as ChecklistExitStatus
+      }))
+    };
+    setChecklist(updatedChecklist);
+    await handlePersistChanges(
+      { checklist: updatedChecklist },
+      'Checklist de Saída aprovado em 100% e salvo!'
+    );
+  };
+
+  const handleAddCustomChecklistItem = async () => {
     if (!newCheckItemLabel.trim()) return;
-    setChecklist((prev) => ({
-      ...prev,
+    const updatedChecklist = {
+      ...checklist,
       items: [
-        ...prev.items,
+        ...checklist.items,
         {
           id: `chk-${Date.now()}`,
-          category: 'MOTOR_FLUIDOS',
+          category: 'MOTOR_FLUIDOS' as const,
           label: newCheckItemLabel.trim(),
-          entryStatus: 'OK',
-          exitStatus: 'OK',
+          entryStatus: 'OK' as ChecklistEntryStatus,
+          exitStatus: 'OK' as ChecklistExitStatus,
           notes: ''
         }
       ]
-    }));
+    };
+    setChecklist(updatedChecklist);
     setNewCheckItemLabel('');
+    await handlePersistChanges({ checklist: updatedChecklist }, 'Novo ponto adicionado ao Checklist!');
   };
 
   // Upload de fotos pelo celular ou PC
@@ -352,8 +525,13 @@ export function OrderOperationalModal({
       const compressed = await compressImageFile(files[0]);
       setNewEvPreview(compressed);
       if (!newEvTitle) {
-        const cleanName = files[0].name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
-        setNewEvTitle(`Evidência: ${cleanName}`);
+        const phaseDefaultTitle =
+          newEvPhase === 'ENTRY'
+            ? 'Foto de Vistoria na Entrada'
+            : newEvPhase === 'PROCESS'
+            ? 'Registro Durante a Manutenção'
+            : 'Veículo Finalizado para Entrega';
+        setNewEvTitle(`${phaseDefaultTitle} - ${order.vehicle.model}`);
       }
     } catch (err) {
       console.error('Erro ao processar foto:', err);
@@ -364,15 +542,14 @@ export function OrderOperationalModal({
     e.preventDefault();
     if (!newEvTitle.trim()) return;
 
-    // Se o operador não selecionou arquivo físico, gera um card técnico visual com os dados da evidência
     const finalImageUrl =
       newEvPreview ||
       `data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500" viewBox="0 0 800 500">
         <rect width="800" height="500" fill="#0D0F14"/>
         <rect x="28" y="28" width="744" height="444" rx="16" fill="#13161F" stroke="#EF4444" stroke-width="2" stroke-opacity="0.5"/>
         <text x="60" y="90" fill="#EF4444" font-family="monospace" font-weight="bold" font-size="16">63 MOTORSPORT // ${newEvCategory.toUpperCase()}</text>
-        <text x="60" y="180" fill="#FFFFFF" font-family="sans-serif" font-weight="bold" font-size="26">${newEvTitle.replace(/[<>&"]/g, '')}</text>
-        <text x="60" y="230" fill="#94A3B8" font-family="sans-serif" font-size="16">${(newEvNotes || 'Evidência técnica registrada na operação').slice(0, 75).replace(/[<>&"]/g, '')}</text>
+        <text x="60" y="180" fill="#FFFFFF" font-family="sans-serif" font-weight="bold" font-size="24">${newEvTitle.replace(/[<>&"]/g, '')}</text>
+        <text x="60" y="230" fill="#94A3B8" font-family="sans-serif" font-size="15">${(newEvNotes || 'Evidência técnica registrada na operação').slice(0, 75).replace(/[<>&"]/g, '')}</text>
         <text x="60" y="420" fill="#64748B" font-family="monospace" font-size="14">VEÍCULO: ${order.vehicle.model.replace(/[<>&"]/g, '')} (${order.vehicle.plate || 'S/ PLACA'}) • OPERADOR: ${userName.replace(/[<>&"]/g, '')}</text>
       </svg>`)}`;
 
@@ -390,7 +567,6 @@ export function OrderOperationalModal({
     const updatedEvidences = [createdEvidence, ...evidences];
     setEvidences(updatedEvidences);
 
-    // Registra também na linha do tempo
     const phaseLabel =
       newEvPhase === 'ENTRY'
         ? 'Vistoria de Entrada'
@@ -418,6 +594,7 @@ export function OrderOperationalModal({
     setNewEvNotes('');
     setNewEvPreview('');
     if (fileInputRef.current) fileInputRef.current.value = '';
+    if (cameraInputRef.current) cameraInputRef.current.value = '';
 
     await handlePersistChanges(
       { evidences: updatedEvidences, timeline: updatedTimeline },
@@ -425,8 +602,10 @@ export function OrderOperationalModal({
     );
   };
 
-  const handleDeleteEvidence = (id: string) => {
-    setEvidences((prev) => prev.filter((e) => e.id !== id));
+  const handleDeleteEvidence = async (id: string) => {
+    const updated = evidences.filter((e) => e.id !== id);
+    setEvidences(updated);
+    await handlePersistChanges({ evidences: updated }, 'Evidência removida.');
   };
 
   // Adicionar registro na Linha do Tempo
@@ -438,7 +617,8 @@ export function OrderOperationalModal({
       id: `tl-${Date.now()}`,
       stage: newLogStage,
       title: newLogTitle.trim(),
-      description: newLogDesc.trim() || 'Procedimento técnico executado conforme padrão 63 Motorsport.',
+      description:
+        newLogDesc.trim() || 'Procedimento técnico executado conforme padrão 63 Motorsport.',
       operator: userName,
       timestamp: new Date().toISOString(),
       durationMinutes: newLogDuration === '' ? undefined : Number(newLogDuration)
@@ -455,8 +635,10 @@ export function OrderOperationalModal({
     );
   };
 
-  const handleDeleteTimelineEntry = (id: string) => {
-    setTimeline((prev) => prev.filter((t) => t.id !== id));
+  const handleDeleteTimelineEntry = async (id: string) => {
+    const updated = timeline.filter((t) => t.id !== id);
+    setTimeline(updated);
+    await handlePersistChanges({ timeline: updated }, 'Registro removido da linha do tempo.');
   };
 
   const filteredEvidences =
@@ -491,7 +673,8 @@ export function OrderOperationalModal({
                 )}
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
-                Proprietário: <strong className="text-slate-200">{order.client.name}</strong> ({order.client.phone}) •{' '}
+                Proprietário: <strong className="text-slate-200">{order.client.name}</strong> (
+                {order.client.phone}) •{' '}
                 <span className="text-emerald-400 font-semibold">{boxRamp}</span>
               </p>
             </div>
@@ -499,7 +682,7 @@ export function OrderOperationalModal({
 
           <div className="flex flex-wrap items-center gap-2">
             {saveFeedback && (
-              <span className="px-3 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-bold flex items-center gap-1.5 animate-pulse">
+              <span className="px-3 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-bold flex items-center gap-1.5">
                 <CheckCircle2 className="w-4 h-4" />
                 {saveFeedback}
               </span>
@@ -512,7 +695,7 @@ export function OrderOperationalModal({
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wider text-slate-200 bg-[#1E222D] hover:bg-[#272C3A] border border-white/10 transition-colors"
               >
                 <Printer className="w-3.5 h-3.5 text-red-500" />
-                <span>Ver Laudo / PDF</span>
+                <span>Laudo / PDF</span>
               </button>
             )}
 
@@ -523,7 +706,7 @@ export function OrderOperationalModal({
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider text-white bg-red-600 hover:bg-red-700 active:scale-95 transition-all shadow-[0_0_20px_rgba(239,68,68,0.3)] disabled:opacity-50"
             >
               <CheckCircle2 className="w-4 h-4" />
-              <span>{isSaving ? 'Salvando...' : 'Salvar Operação'}</span>
+              <span>{isSaving ? 'Salvando...' : 'Salvar Tudo'}</span>
             </button>
 
             <button
@@ -548,7 +731,7 @@ export function OrderOperationalModal({
             }`}
           >
             <Wrench className="w-4 h-4" />
-            <span>1. Controle de Pátio & Coisas Feitas</span>
+            <span>1. Pátio & Coisas Feitas</span>
             <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-black/30">
               {executedItemsCount}/{items.length}
             </span>
@@ -564,7 +747,7 @@ export function OrderOperationalModal({
             }`}
           >
             <ClipboardCheck className="w-4 h-4" />
-            <span>2. Checklist do Carro (Entrada & Saída)</span>
+            <span>2. Checklist Rápido (Entrada/Saída)</span>
             <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-black/30">
               {checklistOkCount}/{checklist.items.length}
             </span>
@@ -596,7 +779,7 @@ export function OrderOperationalModal({
             }`}
           >
             <History className="w-4 h-4" />
-            <span>4. Linha do Tempo (Início ao Fim)</span>
+            <span>4. Linha do Tempo</span>
             <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-black/30">
               {timeline.length}
             </span>
@@ -615,14 +798,14 @@ export function OrderOperationalModal({
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
                     <h3 className="text-xs font-black uppercase tracking-wider text-red-400">
-                      Estágio Operacional do Veículo na Oficina
+                      Estágio Operacional do Veículo na Oficina (Salva em 1 Toque)
                     </h3>
                     <p className="text-xs text-slate-400">
-                      Clique em uma etapa para atualizar o posicionamento do carro em tempo real
+                      Toque na etapa atual do carro para atualizar o painel do pátio imediatamente
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
                       onClick={handleStartMaintenanceNow}
@@ -638,7 +821,7 @@ export function OrderOperationalModal({
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500 hover:text-black transition-all"
                     >
                       <Flag className="w-3.5 h-3.5" />
-                      <span>Finalizar Manutenção Agora</span>
+                      <span>Concluir Tudo & Liberar Carro</span>
                     </button>
                   </div>
                 </div>
@@ -653,7 +836,7 @@ export function OrderOperationalModal({
                       <button
                         key={step.key}
                         type="button"
-                        onClick={() => setOperationalPhase(step.key)}
+                        onClick={() => handleSelectPhase(step.key)}
                         className={`p-3 rounded-xl border text-left transition-all ${
                           isCurrent
                             ? 'bg-red-600/20 border-red-500 text-white shadow-[0_0_15px_rgba(239,68,68,0.2)]'
@@ -747,15 +930,35 @@ export function OrderOperationalModal({
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
                     <h3 className="text-xs font-black uppercase tracking-wider text-red-400">
-                      Coisas Feitas no Carro (Serviços Executados & Peças Instaladas)
+                      Coisas Feitas no Carro (Toque para Marcar Concluído ou Use os Atalhos)
                     </h3>
                     <p className="text-xs text-slate-400">
-                      Marque cada item concluído na rampa ou adicione novos procedimentos realizados no veículo
+                      Cada item marcado ou adicionado já fica salvo no histórico do veículo automaticamente
                     </p>
                   </div>
                   <span className="text-xs font-mono font-bold text-emerald-400">
                     {executedItemsCount} de {items.length} concluídos
                   </span>
+                </div>
+
+                {/* ATALHOS DE 1 TOQUE PARA O MECÂNICO */}
+                <div className="p-3 rounded-xl bg-[#0D0F14] border border-white/5 space-y-2">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 text-red-400" />
+                    Adição Rápida em 1 Toque (Registra no carro e na Linha do Tempo):
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {QUICK_WORK_PRESETS.map((preset) => (
+                      <button
+                        key={preset.label}
+                        type="button"
+                        onClick={() => handleQuickAddWorkPreset(preset)}
+                        className="px-2.5 py-1.5 rounded-lg bg-[#161A24] hover:bg-red-600/20 border border-white/10 hover:border-red-500/40 text-[11px] font-bold text-slate-200 hover:text-white transition-all"
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 {/* Lista de Itens com Checkbox Operacional */}
@@ -778,7 +981,7 @@ export function OrderOperationalModal({
                           className="w-4 h-4 rounded accent-emerald-500 mt-0.5 sm:mt-0"
                         />
                         <div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <span className="font-mono text-[11px] text-slate-500">
                               #{String(idx + 1).padStart(2, '0')}
                             </span>
@@ -793,7 +996,7 @@ export function OrderOperationalModal({
                             </span>
                             <span
                               className={`text-xs sm:text-sm font-bold ${
-                                item.executed ? 'line-through text-slate-300' : 'text-white'
+                                item.executed ? 'text-emerald-100' : 'text-white'
                               }`}
                             >
                               {item.description}
@@ -821,7 +1024,7 @@ export function OrderOperationalModal({
                               : 'bg-amber-500/20 text-amber-300'
                           }`}
                         >
-                          {item.executed ? 'Concluído' : 'Pendente'}
+                          {item.executed ? '✓ Feito' : 'Pendente'}
                         </span>
                       </div>
                     </div>
@@ -838,15 +1041,15 @@ export function OrderOperationalModal({
                     onChange={(e) => setNewTaskType(e.target.value as 'SERVICE' | 'PART')}
                     className="bg-[#0D0F14] border border-white/10 rounded-xl px-3 py-2 text-xs font-bold text-slate-200"
                   >
-                    <option value="SERVICE">+ Serviço Realizado</option>
-                    <option value="PART">+ Peça / Insumo Aplicado</option>
+                    <option value="SERVICE">+ Outro Serviço</option>
+                    <option value="PART">+ Outra Peça</option>
                   </select>
 
                   <input
                     type="text"
                     value={newTaskDesc}
                     onChange={(e) => setNewTaskDesc(e.target.value)}
-                    placeholder="Descreva o que foi feito ou peça instalada no carro (ex: Troca de fluido Motul RBF 660, Revisão de pressurização...)"
+                    placeholder="Ou digite outra coisa feita no carro..."
                     className="flex-1 bg-[#0D0F14] border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-red-500"
                   />
 
@@ -892,30 +1095,41 @@ export function OrderOperationalModal({
           )}
 
           {/* =========================================================
-              ABA 2: CHECKLIST DE VISTORIA (ENTRADA E SAÍDA)
+              ABA 2: CHECKLIST DE VISTORIA RÁPIDO (1 TOQUE)
           ========================================================= */}
           {activeTab === 'checklist' && (
             <div className="space-y-6">
               {/* Parâmetros Vitais de Entrada vs Saída */}
               <div className="bg-[#151822] border border-white/10 rounded-2xl p-4 sm:p-5 space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
                   <div>
                     <h3 className="text-xs font-black uppercase tracking-wider text-red-400">
-                      Parâmetros de Recepção (Entrada) vs. Liberação (Saída)
+                      Checklist Rápido de Recepção (Entrada) e Liberação (Saída)
                     </h3>
                     <p className="text-xs text-slate-400">
-                      Auditoria técnica de quilometragem, combustível, scanner OBD-II e estado físico
+                      Use os botões de aprovação em 1 clique abaixo e marque apenas se houver algum item com atenção/avaria
                     </p>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={handleApproveAllExitChecklist}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-emerald-600 hover:bg-emerald-500 text-white shadow-md"
-                  >
-                    <ShieldCheck className="w-4 h-4" />
-                    <span>Aprovar Todos na Saída (100% OK)</span>
-                  </button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleApproveAllEntryChecklist}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-blue-600 hover:bg-blue-500 text-white shadow-md"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Marcar Entrada 100% OK</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleApproveAllExitChecklist}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-emerald-600 hover:bg-emerald-500 text-white shadow-md"
+                    >
+                      <ShieldCheck className="w-4 h-4" />
+                      <span>Aprovar Saída 100% OK</span>
+                    </button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -1003,27 +1217,55 @@ export function OrderOperationalModal({
                     <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
                       Scanner OBD-II na Entrada (Erros / DTCs)
                     </label>
-                    <input
-                      type="text"
-                      value={checklist.obdFaultCodesEntry}
-                      onChange={(e) =>
-                        setChecklist((prev) => ({ ...prev, obdFaultCodesEntry: e.target.value }))
-                      }
-                      className="w-full bg-[#0D0F14] border border-white/10 rounded-lg px-3 py-2 text-xs text-white font-mono"
-                    />
+                    <div className="flex gap-1.5">
+                      <input
+                        type="text"
+                        value={checklist.obdFaultCodesEntry}
+                        onChange={(e) =>
+                          setChecklist((prev) => ({ ...prev, obdFaultCodesEntry: e.target.value }))
+                        }
+                        className="flex-1 bg-[#0D0F14] border border-white/10 rounded-lg px-3 py-2 text-xs text-white font-mono"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setChecklist((prev) => ({
+                            ...prev,
+                            obdFaultCodesEntry: '0 códigos de falha ativos'
+                          }))
+                        }
+                        className="px-2.5 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold uppercase shrink-0"
+                      >
+                        0 Erros
+                      </button>
+                    </div>
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
                       Scanner OBD-II na Saída (Após Intervenção)
                     </label>
-                    <input
-                      type="text"
-                      value={checklist.obdFaultCodesExit || ''}
-                      onChange={(e) =>
-                        setChecklist((prev) => ({ ...prev, obdFaultCodesExit: e.target.value }))
-                      }
-                      className="w-full bg-[#0D0F14] border border-white/10 rounded-lg px-3 py-2 text-xs text-emerald-400 font-mono"
-                    />
+                    <div className="flex gap-1.5">
+                      <input
+                        type="text"
+                        value={checklist.obdFaultCodesExit || ''}
+                        onChange={(e) =>
+                          setChecklist((prev) => ({ ...prev, obdFaultCodesExit: e.target.value }))
+                        }
+                        className="flex-1 bg-[#0D0F14] border border-white/10 rounded-lg px-3 py-2 text-xs text-emerald-400 font-mono"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setChecklist((prev) => ({
+                            ...prev,
+                            obdFaultCodesExit: '0 códigos de falha (100% limpo)'
+                          }))
+                        }
+                        className="px-2.5 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold uppercase shrink-0"
+                      >
+                        100% Limpo
+                      </button>
+                    </div>
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
@@ -1054,11 +1296,20 @@ export function OrderOperationalModal({
                 </div>
               </div>
 
-              {/* Tabela dos Itens de Checklist */}
+              {/* Tabela dos Itens de Checklist com Botões de 1 Toque */}
               <div className="bg-[#151822] border border-white/10 rounded-2xl p-4 sm:p-5 space-y-4">
-                <h3 className="text-xs font-black uppercase tracking-wider text-red-400">
-                  Itens de Inspeção Técnica (Comparativo Entrada vs. Saída)
-                </h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-red-400">
+                    12 Pontos de Inspeção Técnica (Toque Direto: OK / Atenção / Avaria)
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => handlePersistChanges(undefined, 'Checklist salvo com sucesso!')}
+                    className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold uppercase"
+                  >
+                    Salvar Checklist
+                  </button>
+                </div>
 
                 <div className="space-y-2.5">
                   {checklist.items.map((chk, idx) => (
@@ -1066,79 +1317,79 @@ export function OrderOperationalModal({
                       key={chk.id}
                       className="p-3 rounded-xl bg-[#0D0F14] border border-white/5 grid grid-cols-1 lg:grid-cols-12 gap-3 items-center"
                     >
-                      <div className="lg:col-span-5 flex items-center gap-2.5">
-                        <span className="font-mono text-xs text-slate-500 w-6">
+                      <div className="lg:col-span-4 flex items-center gap-2">
+                        <span className="font-mono text-xs text-slate-500 w-6 shrink-0">
                           #{String(idx + 1).padStart(2, '0')}
                         </span>
                         <span className="text-xs font-bold text-slate-100">{chk.label}</span>
                       </div>
 
-                      <div className="lg:col-span-2 flex items-center gap-2">
-                        <span className="text-[10px] font-mono uppercase text-slate-500 lg:hidden">
-                          Entrada:
+                      {/* Botões de 1 Toque - Entrada */}
+                      <div className="lg:col-span-3 flex items-center gap-1">
+                        <span className="text-[10px] font-mono uppercase text-slate-500 mr-1 shrink-0">
+                          Ent:
                         </span>
-                        <select
-                          value={chk.entryStatus}
-                          onChange={(e) =>
-                            handleUpdateChecklistItem(
-                              chk.id,
-                              'entryStatus',
-                              e.target.value as ChecklistEntryStatus
-                            )
-                          }
-                          className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-bold border ${
-                            chk.entryStatus === 'OK'
-                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                              : chk.entryStatus === 'ATENCAO'
-                              ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
-                              : chk.entryStatus === 'AVARIA'
-                              ? 'bg-red-500/15 text-red-400 border-red-500/30'
-                              : 'bg-slate-800 text-slate-400 border-white/10'
-                          }`}
-                        >
-                          <option value="OK">Entrada: OK</option>
-                          <option value="ATENCAO">Entrada: Atenção</option>
-                          <option value="AVARIA">Entrada: Com Avaria</option>
-                          <option value="NA">Entrada: N/A</option>
-                        </select>
+                        {(
+                          [
+                            { val: 'OK', label: 'OK', active: 'bg-emerald-600 text-white border-emerald-500' },
+                            { val: 'ATENCAO', label: 'Atenção', active: 'bg-amber-500 text-black border-amber-400' },
+                            { val: 'AVARIA', label: 'Avaria', active: 'bg-red-600 text-white border-red-500' }
+                          ] as const
+                        ).map((opt) => (
+                          <button
+                            key={opt.val}
+                            type="button"
+                            onClick={() =>
+                              handleUpdateChecklistItem(chk.id, 'entryStatus', opt.val)
+                            }
+                            className={`flex-1 py-1 px-2 rounded-lg text-[10px] font-bold uppercase border transition-all ${
+                              chk.entryStatus === opt.val
+                                ? opt.active
+                                : 'bg-[#161922] text-slate-400 border-white/10 hover:text-white'
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
                       </div>
 
-                      <div className="lg:col-span-2 flex items-center gap-2">
-                        <span className="text-[10px] font-mono uppercase text-slate-500 lg:hidden">
-                          Saída:
+                      {/* Botões de 1 Toque - Saída */}
+                      <div className="lg:col-span-3 flex items-center gap-1">
+                        <span className="text-[10px] font-mono uppercase text-slate-500 mr-1 shrink-0">
+                          Saí:
                         </span>
-                        <select
-                          value={chk.exitStatus}
-                          onChange={(e) =>
-                            handleUpdateChecklistItem(
-                              chk.id,
-                              'exitStatus',
-                              e.target.value as ChecklistExitStatus
-                            )
-                          }
-                          className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-bold border ${
-                            chk.exitStatus === 'OK' || chk.exitStatus === 'CORRIGIDO'
-                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                              : chk.exitStatus === 'PENDENTE'
-                              ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
-                              : 'bg-slate-800 text-slate-400 border-white/10'
-                          }`}
-                        >
-                          <option value="OK">Saída: OK</option>
-                          <option value="CORRIGIDO">Saída: Corrigido</option>
-                          <option value="PENDENTE">Saída: Pendente</option>
-                          <option value="NA">Saída: N/A</option>
-                        </select>
+                        {(
+                          [
+                            { val: 'OK', label: 'OK', active: 'bg-emerald-600 text-white border-emerald-500' },
+                            { val: 'CORRIGIDO', label: 'Corrigido', active: 'bg-blue-600 text-white border-blue-500' },
+                            { val: 'PENDENTE', label: 'Pend.', active: 'bg-amber-500 text-black border-amber-400' }
+                          ] as const
+                        ).map((opt) => (
+                          <button
+                            key={opt.val}
+                            type="button"
+                            onClick={() =>
+                              handleUpdateChecklistItem(chk.id, 'exitStatus', opt.val)
+                            }
+                            className={`flex-1 py-1 px-2 rounded-lg text-[10px] font-bold uppercase border transition-all ${
+                              chk.exitStatus === opt.val
+                                ? opt.active
+                                : 'bg-[#161922] text-slate-400 border-white/10 hover:text-white'
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
                       </div>
 
-                      <div className="lg:col-span-3">
+                      <div className="lg:col-span-2">
                         <input
                           type="text"
                           value={chk.notes || ''}
                           onChange={(e) =>
                             handleUpdateChecklistItem(chk.id, 'notes', e.target.value)
                           }
-                          placeholder="Observação técnica deste item..."
+                          placeholder="Obs..."
                           className="w-full bg-[#161922] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-red-500"
                         />
                       </div>
@@ -1183,8 +1434,33 @@ export function OrderOperationalModal({
                       Adicionar Nova Foto / Evidência Técnica
                     </h3>
                     <p className="text-xs text-slate-400">
-                      Tire uma foto com o celular ou envie do computador separando por etapa (Entrada, Durante ou Finalização)
+                      Toque em uma legenda pronta abaixo e abra a câmera do celular para anexar em segundos
                     </p>
+                  </div>
+                </div>
+
+                {/* ATALHOS DE LEGENDA EM 1 TOQUE */}
+                <div className="p-3 rounded-xl bg-[#0D0F14] border border-white/5 space-y-2">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 text-red-400" />
+                    Legendas Rápidas (1 Toque preenche Fase, Categoria e Título):
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {QUICK_PHOTO_CAPTIONS.map((cap) => (
+                      <button
+                        key={cap.title}
+                        type="button"
+                        onClick={() => {
+                          setNewEvPhase(cap.phase);
+                          setNewEvCategory(cap.category);
+                          setNewEvTitle(cap.title);
+                          setNewEvNotes(cap.notes);
+                        }}
+                        className="px-2.5 py-1.5 rounded-lg bg-[#161A24] hover:bg-red-600/20 border border-white/10 hover:border-red-500/40 text-[11px] font-bold text-slate-200 hover:text-white transition-all"
+                      >
+                        📸 {cap.title.split('(')[0].trim()}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
@@ -1296,7 +1572,7 @@ export function OrderOperationalModal({
                     className="w-full py-2.5 px-4 rounded-xl text-xs font-bold uppercase tracking-wider bg-red-600 hover:bg-red-700 text-white flex items-center justify-center gap-2 shadow-lg"
                   >
                     <Camera className="w-4 h-4" />
-                    <span>Anexar Evidência no Histórico</span>
+                    <span>Salvar Foto no Histórico</span>
                   </button>
                 </div>
 
@@ -1309,10 +1585,10 @@ export function OrderOperationalModal({
                     />
                     <div className="text-xs">
                       <span className="text-emerald-400 font-bold block">
-                        Imagem pronta para anexar!
+                        Foto carregada e comprimida com sucesso!
                       </span>
                       <span className="text-slate-400">
-                        Preencha o título acima e clique em "Anexar Evidência no Histórico".
+                        Clique em "Salvar Foto no Histórico" para gravar na nuvem.
                       </span>
                     </div>
                   </div>
@@ -1600,7 +1876,10 @@ export function OrderOperationalModal({
 
                 <div className="relative pl-6 border-l-2 border-red-600/40 space-y-6">
                   {timeline.map((log, index) => (
-                    <div key={log.id} className="relative bg-[#0D0F14] border border-white/10 rounded-xl p-4">
+                    <div
+                      key={log.id}
+                      className="relative bg-[#0D0F14] border border-white/10 rounded-xl p-4"
+                    >
                       <span
                         className={`w-3.5 h-3.5 rounded-full absolute -left-[31px] top-5 border-2 border-[#0F1117] ${
                           log.stage === 'COMPLETED'
