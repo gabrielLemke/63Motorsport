@@ -15,6 +15,7 @@ import {
 import { ServiceOrder } from '../../../types/serviceOrder';
 import { UserRole } from '../../../types/admin';
 import { printIsolatedOrder, getStatusLabel, getPhaseLabel } from './printOrder';
+import { useMobileSheetDrag } from '../../../hooks/useMobileSheetDrag';
 
 interface OrderPdfViewProps {
   order: ServiceOrder;
@@ -24,6 +25,11 @@ interface OrderPdfViewProps {
 
 export function OrderPdfView({ order, userRole = 'DIRECTOR', onClose }: OrderPdfViewProps) {
   const [hideFinancials, setHideFinancials] = useState<boolean>(userRole === 'OPERATOR');
+
+  const { sheetStyle, dragHandleProps } = useMobileSheetDrag({
+    isOpen: true,
+    onClose
+  });
 
   const handlePrint = () => {
     printIsolatedOrder(order, { hideFinancials });
@@ -76,69 +82,90 @@ export function OrderPdfView({ order, userRole = 'DIRECTOR', onClose }: OrderPdf
   ).length;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/85 backdrop-blur-md flex flex-col items-center justify-start p-2 sm:p-6 print:p-0 print:bg-white print:static print:inset-auto">
+    <div
+      className="fixed inset-0 z-50 overflow-y-auto mobile-modal-scroll bg-black/85 backdrop-blur-md flex flex-col items-center justify-start p-2 sm:p-6 print:p-0 print:bg-white print:static print:inset-auto"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       {/* Action Bar (hidden on print) */}
-      <div className="no-print w-full max-w-4xl bg-[#13151A] border border-white/10 rounded-2xl p-4 mb-4 flex flex-wrap items-center justify-between gap-3 shadow-2xl sticky top-2 z-50">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-red-600/10 text-red-500 border border-red-500/20">
-            <FileText className="w-5 h-5" />
-          </div>
-          <div>
-            <h2 className="text-sm font-bold text-white uppercase tracking-wider font-['Montserrat']">
-              Dossiê de Manutenção & Ordem de Serviço
-            </h2>
-            <p className="text-xs text-slate-400 font-mono">
-              {order.osNumber} • {order.vehicle.model} ({order.client.name})
-            </p>
-          </div>
+      <div
+        style={sheetStyle}
+        {...dragHandleProps}
+        className="no-print w-full max-w-4xl bg-[#13151A] border border-white/10 rounded-2xl p-3.5 sm:p-4 mb-3 sm:mb-4 flex flex-col gap-2.5 shadow-2xl sticky top-2 z-50 cursor-grab active:cursor-grabbing select-none"
+      >
+        <div className="sm:hidden flex flex-col items-center justify-center">
+          <div className="w-12 h-1.5 rounded-full bg-white/25" />
+          <span className="text-[9px] font-mono uppercase tracking-widest text-slate-500 mt-1">
+            Arraste para baixo para fechar
+          </span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {userRole === 'DIRECTOR' && (
+        <div className="flex flex-wrap items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="p-2 rounded-xl bg-red-600/10 text-red-500 border border-red-500/20 shrink-0">
+              <FileText className="w-4 h-4 sm:w-5 sm:h-5" />
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider font-['Montserrat'] truncate">
+                Dossiê de Manutenção & OS
+              </h2>
+              <p className="text-[11px] sm:text-xs text-slate-400 font-mono truncate">
+                {order.osNumber} • {order.vehicle.model} ({order.client.name})
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+            {userRole === 'DIRECTOR' && (
+              <button
+                type="button"
+                onClick={() => setHideFinancials((prev) => !prev)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-[11px] sm:text-xs font-bold uppercase tracking-wider bg-[#1D202A] text-slate-200 border border-white/10 hover:border-white/20 transition-colors"
+                title="Alternar entre OS Comercial (com valores R$) e Laudo Técnico Operacional (sem valores)"
+              >
+                {hideFinancials ? (
+                  <>
+                    <Eye className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Com R$</span>
+                  </>
+                ) : (
+                  <>
+                    <EyeOff className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Sem R$</span>
+                  </>
+                )}
+              </button>
+            )}
+
             <button
               type="button"
-              onClick={() => setHideFinancials((prev) => !prev)}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-[#1D202A] text-slate-200 border border-white/10 hover:border-white/20 transition-colors"
-              title="Alternar entre OS Comercial (com valores R$) e Laudo Técnico Operacional (sem valores)"
+              onClick={handleShareWhatsApp}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] sm:text-xs font-bold uppercase tracking-wider text-white bg-emerald-600 hover:bg-emerald-500 active:scale-95 transition-all shadow-md"
+              title="Enviar resumo para o cliente no WhatsApp"
             >
-              {hideFinancials ? (
-                <>
-                  <Eye className="w-4 h-4 text-emerald-400" />
-                  <span>Mostrar Valores (R$)</span>
-                </>
-              ) : (
-                <>
-                  <EyeOff className="w-4 h-4 text-amber-400" />
-                  <span>Modo Laudo Técnico (Sem R$)</span>
-                </>
-              )}
+              <MessageCircle className="w-3.5 h-3.5" />
+              <span className="hidden xs:inline">WhatsApp</span>
             </button>
-          )}
 
-          <button
-            onClick={handleShareWhatsApp}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wider text-white bg-emerald-600 hover:bg-emerald-500 active:scale-95 transition-all shadow-md"
-            title="Enviar resumo para o cliente no WhatsApp"
-          >
-            <MessageCircle className="w-4 h-4" />
-            <span className="hidden sm:inline">WhatsApp</span>
-          </button>
+            <button
+              type="button"
+              onClick={handlePrint}
+              className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl text-[11px] sm:text-xs font-bold uppercase tracking-wider text-white bg-red-600 hover:bg-red-700 active:scale-95 transition-all shadow-[0_0_20px_rgba(239,68,68,0.3)]"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              <span>PDF</span>
+            </button>
 
-          <button
-            onClick={handlePrint}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider text-white bg-red-600 hover:bg-red-700 active:scale-95 transition-all shadow-[0_0_20px_rgba(239,68,68,0.3)]"
-          >
-            <Printer className="w-4 h-4" />
-            <span>Imprimir / Salvar PDF</span>
-          </button>
-
-          <button
-            onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-            title="Fechar"
-          >
-            <X className="w-5 h-5" />
-          </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-2 rounded-xl text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 transition-colors"
+              title="Fechar"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
       </div>
 

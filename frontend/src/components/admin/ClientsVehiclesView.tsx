@@ -21,6 +21,7 @@ import { serviceOrderApi } from '../../services/serviceOrderApi';
 import { OrderOperationalModal } from './orders/OrderOperationalModal';
 import { OrderFormModal } from './orders/OrderFormModal';
 import { OrderPdfView } from './orders/OrderPdfView';
+import { useMobileSheetDrag } from '../../hooks/useMobileSheetDrag';
 
 interface ClientsVehiclesViewProps {
   userRole: UserRole;
@@ -160,6 +161,11 @@ export function ClientsVehiclesView({ userRole, userName }: ClientsVehiclesViewP
     () => dossiers.find((d) => d.key === selectedDossierKey) || null,
     [dossiers, selectedDossierKey]
   );
+
+  const { sheetStyle: dossierSheetStyle, dragHandleProps: dossierDragProps } = useMobileSheetDrag({
+    isOpen: Boolean(activeDossier),
+    onClose: () => setSelectedDossierKey(null)
+  });
 
   const handleSaveOperationalChanges = async (
     id: string,
@@ -418,51 +424,71 @@ export function ClientsVehiclesView({ userRole, userName }: ClientsVehiclesViewP
           MODAL DE PRONTUÁRIO HISTÓRICO COMPLETO DO VEÍCULO & CLIENTE
       ========================================================= */}
       {activeDossier && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/90 backdrop-blur-md flex items-center justify-center p-2 sm:p-6">
-          <div className="bg-[#0F1117] border border-white/15 rounded-2xl w-full max-w-5xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
-            {/* Header do Prontuário */}
-            <div className="p-4 sm:px-6 border-b border-white/10 bg-[#141720] flex items-center justify-between gap-4">
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="px-2.5 py-0.5 rounded text-xs font-mono font-black bg-amber-500/15 text-amber-400 border border-amber-500/30">
-                    {activeDossier.plate}
-                  </span>
-                  <h2 className="text-lg sm:text-xl font-black uppercase text-white font-['Montserrat']">
-                    Prontuário Histórico // {activeDossier.model}
-                  </h2>
-                </div>
-                <p className="text-xs text-slate-400 mt-1">
-                  Proprietário: <strong className="text-white">{activeDossier.client.name}</strong> •{' '}
-                  {activeDossier.client.phone} • {activeDossier.totalVisits}{' '}
-                  {activeDossier.totalVisits === 1 ? 'manutenção registrada' : 'manutenções registradas'}
-                </p>
+        <div
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-6"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSelectedDossierKey(null);
+          }}
+        >
+          <div
+            style={dossierSheetStyle}
+            className="bg-[#0F1117] border-t sm:border border-white/15 rounded-t-3xl sm:rounded-2xl w-full max-w-5xl max-h-[94dvh] sm:max-h-[92dvh] flex flex-col shadow-2xl overflow-hidden safe-area-bottom"
+          >
+            {/* Header do Prontuário (Com Barra de Arrasto Mobile para Fechar) */}
+            <div
+              {...dossierDragProps}
+              className="pt-2.5 pb-3 px-4 sm:px-6 border-b border-white/10 bg-[#141720] shrink-0 cursor-grab active:cursor-grabbing select-none"
+            >
+              <div className="sm:hidden flex flex-col items-center justify-center mb-2">
+                <div className="w-12 h-1.5 rounded-full bg-white/25" />
+                <span className="text-[9px] font-mono uppercase tracking-widest text-slate-500 mt-1">
+                  Arraste para baixo para fechar
+                </span>
               </div>
 
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const cleanPhone = activeDossier.client.phone.replace(/\D/g, '');
-                    window.open(`https://wa.me/55${cleanPhone}`, '_blank');
-                  }}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold uppercase bg-emerald-600 hover:bg-emerald-500 text-white"
-                >
-                  <MessageCircle className="w-4 h-4" />
-                  <span className="hidden sm:inline">WhatsApp Cliente</span>
-                </button>
+              <div className="flex items-start sm:items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="px-2.5 py-0.5 rounded text-xs font-mono font-black bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                      {activeDossier.plate}
+                    </span>
+                    <h2 className="text-base sm:text-xl font-black uppercase text-white font-['Montserrat'] truncate">
+                      Prontuário // {activeDossier.model}
+                    </h2>
+                  </div>
+                  <p className="text-[11px] sm:text-xs text-slate-400 mt-1 truncate">
+                    Proprietário: <strong className="text-white">{activeDossier.client.name}</strong> •{' '}
+                    {activeDossier.client.phone} • {activeDossier.totalVisits}{' '}
+                    {activeDossier.totalVisits === 1 ? 'passagem' : 'passagens'}
+                  </p>
+                </div>
 
-                <button
-                  type="button"
-                  onClick={() => setSelectedDossierKey(null)}
-                  className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const cleanPhone = activeDossier.client.phone.replace(/\D/g, '');
+                      window.open(`https://wa.me/55${cleanPhone}`, '_blank');
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold uppercase bg-emerald-600 hover:bg-emerald-500 text-white"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    <span className="hidden sm:inline">WhatsApp Cliente</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDossierKey(null)}
+                    className="p-2 rounded-xl text-slate-400 hover:text-white bg-white/5 hover:bg-white/10"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
             </div>
 
             {/* Corpo do Prontuário: Todas as Passagens do Início ao Fim */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+            <div className="flex-1 overflow-y-auto mobile-modal-scroll p-3.5 sm:p-6 space-y-5 sm:space-y-6">
               {activeDossier.orders.map((visit, vIdx) => (
                 <div
                   key={visit.id}

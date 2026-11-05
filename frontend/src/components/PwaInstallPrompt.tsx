@@ -11,6 +11,7 @@ import {
   Sparkles,
   ExternalLink
 } from 'lucide-react';
+import { useMobileSheetDrag } from '../hooks/useMobileSheetDrag';
 
 declare global {
   interface Window {
@@ -62,8 +63,6 @@ export function PwaInstallPrompt({
     setPlatform(detected);
     setIsStandalone(standalone);
 
-    // Se o usuário acessar pelo celular (Google / Safari / Chrome no iPhone ou Android) e ainda não estiver no App instalado,
-    // encaminha automaticamente para baixar/instalar o aplicativo!
     const dismissedSession = sessionStorage.getItem('63motorsport_pwa_prompt_dismissed');
     const isMobileViewport = window.innerWidth <= 900 || detected === 'ios' || detected === 'android';
 
@@ -116,6 +115,13 @@ export function PwaInstallPrompt({
     if (onCloseForcedModal) onCloseForcedModal();
   };
 
+  const isVisible = (showAutoPrompt && !isStandalone) || forceOpenModal;
+
+  const { sheetStyle, dragHandleProps } = useMobileSheetDrag({
+    isOpen: isVisible,
+    onClose: handleDismiss
+  });
+
   const handleTriggerInstall = async () => {
     const activePrompt = deferredPrompt || window.__deferredPwaPrompt;
 
@@ -134,26 +140,42 @@ export function PwaInstallPrompt({
       }
     }
 
-    // Se estiver no iPhone (iOS) ou no WebView do Google onde o prompt nativo exige ação pelo menu do navegador,
-    // exibe o passo a passo visual imediato para instalar na tela inicial
     setShowStepGuide(true);
   };
 
-  const isVisible = (showAutoPrompt && !isStandalone) || forceOpenModal;
   if (!isVisible) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200">
-      <div className="w-full max-w-md bg-[#11131A] border border-red-500/40 rounded-2xl shadow-[0_0_50px_rgba(239,68,68,0.25)] overflow-hidden relative">
+    <div
+      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-6 animate-in fade-in duration-200"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) handleDismiss();
+      }}
+    >
+      <div
+        style={sheetStyle}
+        className="w-full max-w-md max-h-[90dvh] bg-[#11131A] border-t sm:border border-red-500/40 rounded-t-3xl sm:rounded-2xl shadow-[0_0_50px_rgba(239,68,68,0.25)] flex flex-col overflow-hidden relative safe-area-bottom"
+      >
         {/* Top Accent Line */}
-        <div className="h-1.5 w-full bg-gradient-to-r from-red-600 via-amber-500 to-red-600" />
+        <div className="h-1.5 w-full bg-gradient-to-r from-red-600 via-amber-500 to-red-600 shrink-0" />
 
-        <div className="p-5 sm:p-6 space-y-5">
-          {/* Header with App Icon & Close */}
+        {/* Mobile Drag-to-Close Handle + Header */}
+        <div
+          {...dragHandleProps}
+          className="pt-2.5 pb-3 px-4 sm:px-6 border-b border-white/10 bg-[#141720] shrink-0 cursor-grab active:cursor-grabbing select-none"
+        >
+          {/* Barra de arrasto mobile */}
+          <div className="sm:hidden flex flex-col items-center justify-center mb-2.5">
+            <div className="w-12 h-1.5 rounded-full bg-white/25" />
+            <span className="text-[9px] font-mono uppercase tracking-widest text-slate-500 mt-1">
+              Arraste para baixo para fechar
+            </span>
+          </div>
+
           <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-3.5">
-              <div className="w-14 h-14 rounded-2xl bg-[#090A0D] border-2 border-red-500/50 flex flex-col items-center justify-center shadow-lg shrink-0 relative">
-                <span className="font-['Montserrat'] font-black italic text-xl text-white leading-none">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#090A0D] border-2 border-red-500/50 flex flex-col items-center justify-center shadow-lg shrink-0 relative">
+                <span className="font-['Montserrat'] font-black italic text-lg sm:text-xl text-white leading-none">
                   63
                 </span>
                 <span className="text-[7px] font-mono font-bold text-red-500 tracking-widest mt-0.5">
@@ -162,17 +184,17 @@ export function PwaInstallPrompt({
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#090A0D] absolute -top-1 -right-1" />
               </div>
 
-              <div>
+              <div className="min-w-0">
                 <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-red-600/15 border border-red-500/30 text-red-400 text-[10px] font-mono font-bold uppercase mb-1">
-                  <Sparkles className="w-3 h-3" />
-                  <span>App Oficial PWA / TWA</span>
+                  <Sparkles className="w-3 h-3 shrink-0" />
+                  <span className="truncate">App Oficial PWA / TWA</span>
                 </div>
-                <h3 className="text-base sm:text-lg font-black text-white uppercase tracking-tight font-['Montserrat']">
+                <h3 className="text-sm sm:text-lg font-black text-white uppercase tracking-tight font-['Montserrat'] truncate">
                   Baixar App 63 Motorsport
                 </h3>
-                <p className="text-xs text-slate-400">
+                <p className="text-[11px] sm:text-xs text-slate-400 leading-snug">
                   Compatível com <strong className="text-slate-200">iPhone (iOS)</strong>,{' '}
-                  <strong className="text-slate-200">Android</strong> e Computador
+                  <strong className="text-slate-200">Android</strong> e PC
                 </p>
               </div>
             </div>
@@ -180,13 +202,16 @@ export function PwaInstallPrompt({
             <button
               type="button"
               onClick={handleDismiss}
-              className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+              className="p-2 rounded-xl text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 transition-colors shrink-0"
               aria-label="Fechar"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
+        </div>
 
+        {/* Scrollable Content Body */}
+        <div className="flex-1 overflow-y-auto mobile-modal-scroll p-4 sm:p-6 space-y-4">
           {installedSuccess ? (
             <div className="p-4 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-center space-y-2">
               <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto" />
@@ -201,8 +226,8 @@ export function PwaInstallPrompt({
             <>
               {/* Recursos do App para Mecânicos, Operação e Clientes */}
               <div className="bg-[#171A24] border border-white/10 rounded-xl p-3.5 space-y-2 text-xs">
-                <div className="font-bold text-white uppercase text-[11px] tracking-wider text-red-400 flex items-center gap-1.5">
-                  <Smartphone className="w-3.5 h-3.5" />
+                <div className="font-bold uppercase text-[11px] tracking-wider text-red-400 flex items-center gap-1.5">
+                  <Smartphone className="w-3.5 h-3.5 shrink-0" />
                   <span>Acesso Rápido para Mecânicos, Operação e Diretoria:</span>
                 </div>
                 <ul className="space-y-1.5 text-slate-300 text-[11px]">
@@ -223,7 +248,7 @@ export function PwaInstallPrompt({
 
               {/* Guia Visual Específico se for iPhone (iOS) ou se o usuário clicou para ver instruções */}
               {(platform === 'ios' || showStepGuide) && (
-                <div className="bg-[#0D0F14] border border-amber-500/30 rounded-xl p-4 space-y-3">
+                <div className="bg-[#0D0F14] border border-amber-500/30 rounded-xl p-3.5 space-y-2.5">
                   {platform === 'ios' ? (
                     <>
                       <div className="flex items-center gap-2 text-xs font-bold text-amber-400 uppercase">
@@ -237,7 +262,7 @@ export function PwaInstallPrompt({
                           </span>
                           <span>
                             Toque no ícone <strong>Compartilhar</strong>{' '}
-                            <Share className="w-3.5 h-3.5 inline text-blue-400 mx-0.5" /> na barra inferior (Safari) ou superior (Chrome/Google).
+                            <Share className="w-3.5 h-3.5 inline text-blue-400 mx-0.5" /> na barra do Safari ou Chrome.
                           </span>
                         </li>
                         <li className="flex items-start gap-2">
@@ -247,7 +272,8 @@ export function PwaInstallPrompt({
                           <span>
                             Role o menu e toque em{' '}
                             <strong className="text-white">
-                              "Adicionar à Tela de Início" <PlusSquare className="w-3.5 h-3.5 inline text-emerald-400 mx-0.5" />
+                              "Adicionar à Tela de Início"{' '}
+                              <PlusSquare className="w-3.5 h-3.5 inline text-emerald-400 mx-0.5" />
                             </strong>
                             .
                           </span>
@@ -257,7 +283,7 @@ export function PwaInstallPrompt({
                             3
                           </span>
                           <span>
-                            Confirme em <strong>"Adicionar"</strong> para baixar o App na tela do seu iPhone!
+                            Confirme em <strong>"Adicionar"</strong> para baixar o App na tela inicial!
                           </span>
                         </li>
                       </ol>
@@ -300,7 +326,7 @@ export function PwaInstallPrompt({
                     onClick={handleTriggerInstall}
                     className="w-full py-3.5 px-4 rounded-xl font-black uppercase tracking-wider text-xs text-white bg-red-600 hover:bg-red-700 active:scale-95 transition-all shadow-[0_0_25px_rgba(239,68,68,0.4)] flex items-center justify-center gap-2"
                   >
-                    <Download className="w-4 h-4" />
+                    <Download className="w-4 h-4 shrink-0" />
                     <span>Baixar / Instalar Aplicativo Agora</span>
                   </button>
                 )}
@@ -317,9 +343,9 @@ export function PwaInstallPrompt({
                       : 'bg-[#1D212D] hover:bg-[#262B3A] text-slate-100 border border-white/10'
                   }`}
                 >
-                  <Wrench className="w-4 h-4 text-emerald-400" />
+                  <Wrench className="w-4 h-4 text-emerald-400 shrink-0" />
                   <span>Abrir Central dos Mecânicos / Operação</span>
-                  <ExternalLink className="w-3.5 h-3.5 opacity-70" />
+                  <ExternalLink className="w-3.5 h-3.5 opacity-70 shrink-0" />
                 </button>
 
                 <button

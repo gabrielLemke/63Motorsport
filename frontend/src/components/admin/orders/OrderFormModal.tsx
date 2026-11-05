@@ -15,6 +15,7 @@ import {
 import { ServiceOrder, OrderItem, OrderStatus, createDefaultChecklist } from '../../../types/serviceOrder';
 import { AdminQuote, UserRole } from '../../../types/admin';
 import { serviceOrderApi } from '../../../services/serviceOrderApi';
+import { useMobileSheetDrag } from '../../../hooks/useMobileSheetDrag';
 
 interface OrderFormModalProps {
   isOpen: boolean;
@@ -224,6 +225,11 @@ export function OrderFormModal({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const { sheetStyle, dragHandleProps } = useMobileSheetDrag({
+    isOpen,
+    onClose
+  });
+
   // Carrega clientes/veículos anteriores para preenchimento em 1 clique
   useEffect(() => {
     if (!isOpen) return;
@@ -395,40 +401,61 @@ export function OrderFormModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-6">
-      <div className="bg-[#12141A] border border-white/10 rounded-2xl w-full max-w-4xl max-h-[93vh] flex flex-col shadow-2xl overflow-hidden">
-        {/* Modal Header */}
-        <div className="p-4 sm:p-5 border-b border-white/10 bg-[#161922] flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-red-600/15 text-red-500 border border-red-500/30">
-              <Wrench className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-base sm:text-lg font-black text-white uppercase tracking-wider font-['Montserrat']">
-                {initialOrder
-                  ? `Editar ${initialOrder.osNumber}`
-                  : prefillClientAndVehicle
-                  ? `Nova Passagem: ${prefillClientAndVehicle.vehicle.model}`
-                  : 'Check-in Rápido de Veículo / Nova OS'}
-              </h2>
-              <p className="text-xs text-slate-400">
-                {initialQuote
-                  ? `Importando dados do orçamento de ${initialQuote.name}`
-                  : 'Preencha apenas os dados principais ou clique em um cliente/serviço abaixo para preencher em 1 toque'}
-              </p>
-            </div>
+    <div
+      className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        style={sheetStyle}
+        className="bg-[#12141A] border-t sm:border border-white/15 rounded-t-3xl sm:rounded-2xl w-full max-w-4xl max-h-[94dvh] sm:max-h-[92dvh] flex flex-col shadow-2xl overflow-hidden safe-area-bottom"
+      >
+        {/* Modal Header (Com Barra de Arrasto Mobile para Fechar) */}
+        <div
+          {...dragHandleProps}
+          className="pt-2.5 pb-3 px-4 sm:p-5 border-b border-white/10 bg-[#161922] shrink-0 cursor-grab active:cursor-grabbing select-none"
+        >
+          <div className="sm:hidden flex flex-col items-center justify-center mb-2">
+            <div className="w-12 h-1.5 rounded-full bg-white/25" />
+            <span className="text-[9px] font-mono uppercase tracking-widest text-slate-500 mt-1">
+              Arraste para baixo para fechar
+            </span>
           </div>
 
-          <button
-            onClick={onClose}
-            className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-start sm:items-center justify-between gap-3">
+            <div className="flex items-start sm:items-center gap-3 min-w-0">
+              <div className="p-2 rounded-xl bg-red-600/15 text-red-500 border border-red-500/30 shrink-0">
+                <Wrench className="w-4 h-4 sm:w-5 sm:h-5" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-sm sm:text-lg font-black text-white uppercase tracking-wider font-['Montserrat'] truncate">
+                  {initialOrder
+                    ? `Editar ${initialOrder.osNumber}`
+                    : prefillClientAndVehicle
+                    ? `Nova Passagem: ${prefillClientAndVehicle.vehicle.model}`
+                    : 'Check-in Rápido de Veículo / Nova OS'}
+                </h2>
+                <p className="text-[11px] sm:text-xs text-slate-400 leading-snug">
+                  {initialQuote
+                    ? `Importando dados do orçamento de ${initialQuote.name}`
+                    : 'Toque em um cliente ou serviço abaixo para preencher em 1 segundo'}
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-2 rounded-xl text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 transition-colors shrink-0"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Modal Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto mobile-modal-scroll p-4 sm:p-6 space-y-5">
           {/* BARRA DE PREENCHIMENTO EM 1 CLIQUE (CLIENTES RECORRENTES) */}
           {!initialOrder && existingOrders.length > 0 && (
             <div className="bg-emerald-950/20 border border-emerald-500/25 rounded-xl p-3.5 space-y-2">

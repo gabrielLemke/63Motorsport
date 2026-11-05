@@ -31,6 +31,7 @@ import {
   createDefaultChecklist
 } from '../../../types/serviceOrder';
 import { UserRole } from '../../../types/admin';
+import { useMobileSheetDrag } from '../../../hooks/useMobileSheetDrag';
 
 interface OrderOperationalModalProps {
   order: ServiceOrder;
@@ -649,89 +650,125 @@ export function OrderOperationalModal({
   ).length;
   const executedItemsCount = items.filter((i) => i.executed).length;
 
+  const { sheetStyle, dragHandleProps } = useMobileSheetDrag({
+    isOpen: true,
+    onClose
+  });
+
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/90 backdrop-blur-md flex items-center justify-center p-2 sm:p-5">
-      <div className="bg-[#0F1117] border border-white/15 rounded-2xl w-full max-w-6xl max-h-[94vh] flex flex-col shadow-2xl overflow-hidden">
-        {/* Top Header */}
-        <div className="p-4 sm:px-6 border-b border-white/10 bg-[#141720] flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-          <div className="flex items-start sm:items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-red-600/15 text-red-500 border border-red-500/30 shrink-0">
-              <Wrench className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="font-mono text-xs font-black px-2 py-0.5 rounded bg-red-600 text-white">
-                  {order.osNumber}
-                </span>
-                <h2 className="text-base sm:text-lg font-black uppercase tracking-tight text-white font-['Montserrat']">
-                  {order.vehicle.model}
-                </h2>
-                {order.vehicle.plate && (
-                  <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-[#1F2430] text-amber-400 border border-amber-500/30">
-                    {order.vehicle.plate}
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Proprietário: <strong className="text-slate-200">{order.client.name}</strong> (
-                {order.client.phone}) •{' '}
-                <span className="text-emerald-400 font-semibold">{boxRamp}</span>
-              </p>
-            </div>
+    <div
+      className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        style={sheetStyle}
+        className="bg-[#0F1117] border-t sm:border border-white/15 rounded-t-3xl sm:rounded-2xl w-full max-w-6xl max-h-[94dvh] sm:max-h-[92dvh] flex flex-col shadow-2xl overflow-hidden safe-area-bottom"
+      >
+        {/* Top Header (Com Barra de Arrasto Mobile para Fechar) */}
+        <div
+          {...dragHandleProps}
+          className="pt-2.5 pb-3 px-3.5 sm:px-6 border-b border-white/10 bg-[#141720] shrink-0 cursor-grab active:cursor-grabbing select-none"
+        >
+          {/* Barra visual de arrasto para baixo no celular */}
+          <div className="sm:hidden flex flex-col items-center justify-center mb-2">
+            <div className="w-12 h-1.5 rounded-full bg-white/25" />
+            <span className="text-[9px] font-mono uppercase tracking-widest text-slate-500 mt-1">
+              Arraste para baixo para fechar
+            </span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            {saveFeedback && (
-              <span className="px-3 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-bold flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4" />
-                {saveFeedback}
-              </span>
-            )}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5">
+            <div className="flex items-start sm:items-center justify-between gap-2 min-w-0">
+              <div className="flex items-start sm:items-center gap-2.5 min-w-0">
+                <div className="p-2 rounded-xl bg-red-600/15 text-red-500 border border-red-500/30 shrink-0">
+                  <Wrench className="w-4 h-4 sm:w-5 sm:h-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                    <span className="font-mono text-[11px] sm:text-xs font-black px-2 py-0.5 rounded bg-red-600 text-white">
+                      {order.osNumber}
+                    </span>
+                    <h2 className="text-sm sm:text-lg font-black uppercase tracking-tight text-white font-['Montserrat'] truncate">
+                      {order.vehicle.model}
+                    </h2>
+                    {order.vehicle.plate && (
+                      <span className="font-mono text-[11px] sm:text-xs font-bold px-2 py-0.5 rounded bg-[#1F2430] text-amber-400 border border-amber-500/30">
+                        {order.vehicle.plate}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5 truncate">
+                    Cliente: <strong className="text-slate-200">{order.client.name}</strong> •{' '}
+                    <span className="text-emerald-400 font-semibold">{boxRamp}</span>
+                  </p>
+                </div>
+              </div>
 
-            {onOpenPdf && (
+              {/* Botão Fechar Mobile no Canto Superior Direito */}
               <button
                 type="button"
-                onClick={() => onOpenPdf(order)}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wider text-slate-200 bg-[#1E222D] hover:bg-[#272C3A] border border-white/10 transition-colors"
+                onClick={onClose}
+                className="lg:hidden p-2 rounded-xl text-slate-400 hover:text-white bg-white/5 shrink-0"
               >
-                <Printer className="w-3.5 h-3.5 text-red-500" />
-                <span>Laudo / PDF</span>
+                <X className="w-5 h-5" />
               </button>
-            )}
+            </div>
 
-            <button
-              type="button"
-              onClick={() => handlePersistChanges()}
-              disabled={isSaving}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider text-white bg-red-600 hover:bg-red-700 active:scale-95 transition-all shadow-[0_0_20px_rgba(239,68,68,0.3)] disabled:opacity-50"
-            >
-              <CheckCircle2 className="w-4 h-4" />
-              <span>{isSaving ? 'Salvando...' : 'Salvar Tudo'}</span>
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              {saveFeedback && (
+                <span className="px-2.5 py-1 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">{saveFeedback}</span>
+                </span>
+              )}
 
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
+              {onOpenPdf && (
+                <button
+                  type="button"
+                  onClick={() => onOpenPdf(order)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:py-2 rounded-xl text-xs font-bold uppercase tracking-wider text-slate-200 bg-[#1E222D] hover:bg-[#272C3A] border border-white/10 transition-colors"
+                >
+                  <Printer className="w-3.5 h-3.5 text-red-500" />
+                  <span>Laudo / PDF</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => handlePersistChanges()}
+                disabled={isSaving}
+                className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-1.5 sm:py-2 rounded-xl text-xs font-bold uppercase tracking-wider text-white bg-red-600 hover:bg-red-700 active:scale-95 transition-all shadow-[0_0_20px_rgba(239,68,68,0.3)] disabled:opacity-50"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>{isSaving ? 'Salvando...' : 'Salvar Tudo'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={onClose}
+                className="hidden lg:inline-flex p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Sub-Header Navigation Tabs */}
-        <div className="bg-[#12151E] border-b border-white/10 px-4 sm:px-6 py-2.5 flex items-center gap-2 overflow-x-auto">
+        <div className="bg-[#12151E] border-b border-white/10 px-3 sm:px-6 py-2 flex items-center gap-1.5 sm:gap-2 overflow-x-auto shrink-0">
           <button
             type="button"
             onClick={() => setActiveTab('overview')}
-            className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all ${
+            className={`inline-flex items-center gap-1.5 sm:gap-2 px-3 py-2 rounded-xl text-[11px] sm:text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all ${
               activeTab === 'overview'
                 ? 'bg-red-600 text-white shadow-md'
                 : 'text-slate-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            <Wrench className="w-4 h-4" />
-            <span>1. Pátio & Coisas Feitas</span>
+            <Wrench className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span>1. Pátio & Feitos</span>
             <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-black/30">
               {executedItemsCount}/{items.length}
             </span>
@@ -740,14 +777,14 @@ export function OrderOperationalModal({
           <button
             type="button"
             onClick={() => setActiveTab('checklist')}
-            className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all ${
+            className={`inline-flex items-center gap-1.5 sm:gap-2 px-3 py-2 rounded-xl text-[11px] sm:text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all ${
               activeTab === 'checklist'
                 ? 'bg-red-600 text-white shadow-md'
                 : 'text-slate-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            <ClipboardCheck className="w-4 h-4" />
-            <span>2. Checklist Rápido (Entrada/Saída)</span>
+            <ClipboardCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span>2. Checklist</span>
             <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-black/30">
               {checklistOkCount}/{checklist.items.length}
             </span>
@@ -756,14 +793,14 @@ export function OrderOperationalModal({
           <button
             type="button"
             onClick={() => setActiveTab('evidences')}
-            className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all ${
+            className={`inline-flex items-center gap-1.5 sm:gap-2 px-3 py-2 rounded-xl text-[11px] sm:text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all ${
               activeTab === 'evidences'
                 ? 'bg-red-600 text-white shadow-md'
                 : 'text-slate-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            <Camera className="w-4 h-4" />
-            <span>3. Fotos & Evidências</span>
+            <Camera className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span>3. Fotos</span>
             <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-black/30">
               {evidences.length}
             </span>
@@ -772,22 +809,22 @@ export function OrderOperationalModal({
           <button
             type="button"
             onClick={() => setActiveTab('timeline')}
-            className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all ${
+            className={`inline-flex items-center gap-1.5 sm:gap-2 px-3 py-2 rounded-xl text-[11px] sm:text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all ${
               activeTab === 'timeline'
                 ? 'bg-red-600 text-white shadow-md'
                 : 'text-slate-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            <History className="w-4 h-4" />
-            <span>4. Linha do Tempo</span>
+            <History className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span>4. Histórico</span>
             <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-black/30">
               {timeline.length}
             </span>
           </button>
         </div>
 
-        {/* Body Content */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+        {/* Body Content (Com Scroll Fluido Mobile e Overscroll Contain) */}
+        <div className="flex-1 overflow-y-auto mobile-modal-scroll p-3.5 sm:p-6 space-y-5 sm:space-y-6">
           {/* =========================================================
               ABA 1: CONTROLE DE PÁTIO, INÍCIO/FIM & COISAS FEITAS
           ========================================================= */}
