@@ -26,7 +26,7 @@ interface OrderPdfViewProps {
 export function OrderPdfView({ order, userRole = 'DIRECTOR', onClose }: OrderPdfViewProps) {
   const [hideFinancials, setHideFinancials] = useState<boolean>(userRole === 'OPERATOR');
 
-  const { sheetStyle, dragHandleProps } = useMobileSheetDrag({
+  useMobileSheetDrag({
     isOpen: true,
     onClose
   });
@@ -89,18 +89,7 @@ export function OrderPdfView({ order, userRole = 'DIRECTOR', onClose }: OrderPdf
       }}
     >
       {/* Action Bar (hidden on print) */}
-      <div
-        style={sheetStyle}
-        {...dragHandleProps}
-        className="no-print w-full max-w-4xl bg-[#13151A] border border-white/10 rounded-2xl p-3.5 sm:p-4 mb-3 sm:mb-4 flex flex-col gap-2.5 shadow-2xl sticky top-2 z-50 cursor-grab active:cursor-grabbing select-none"
-      >
-        <div className="sm:hidden flex flex-col items-center justify-center">
-          <div className="w-12 h-1.5 rounded-full bg-white/25" />
-          <span className="text-[9px] font-mono uppercase tracking-widest text-slate-500 mt-1">
-            Arraste para baixo para fechar
-          </span>
-        </div>
-
+      <div className="no-print w-full max-w-4xl bg-[#13151A] border border-white/10 rounded-2xl p-3.5 sm:p-4 mb-3 sm:mb-4 flex flex-col gap-2.5 shadow-2xl sticky top-2 z-50">
         <div className="flex flex-wrap items-center justify-between gap-2.5">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="p-2 rounded-xl bg-red-600/10 text-red-500 border border-red-500/20 shrink-0">

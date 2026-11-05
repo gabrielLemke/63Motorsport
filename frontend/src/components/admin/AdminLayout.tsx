@@ -44,13 +44,13 @@ export function AdminLayout({
   const isDirectorView = effectiveRole === 'DIRECTOR';
   const [isMobileAccountSheetOpen, setIsMobileAccountSheetOpen] = useState(false);
 
-  const { sheetStyle, dragHandleProps } = useMobileSheetDrag({
+  useMobileSheetDrag({
     isOpen: isMobileAccountSheetOpen,
     onClose: () => setIsMobileAccountSheetOpen(false)
   });
 
   return (
-    <div className="min-h-[100dvh] w-full max-w-full overflow-x-hidden bg-[#090A0D] text-slate-100 flex flex-col font-['Inter',sans-serif] pb-24 lg:pb-0">
+    <div className="min-h-[100dvh] w-full max-w-full bg-[#090A0D] text-slate-100 flex flex-col font-['Inter',sans-serif] pb-24 lg:pb-0">
       {/* Top Motorsport Operational Status Bar */}
       <div className="bg-[#050608] border-b border-white/5 py-1.5 px-3 sm:px-4 text-[11px] text-slate-400 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
@@ -86,9 +86,7 @@ export function AdminLayout({
               title="Alternar rapidamente entre a visão completa da Diretoria e a visão técnica de Operador de Pátio"
             >
               <Repeat className="w-3 h-3 text-red-400 shrink-0" />
-              <span className="hidden xs:inline">
-                {isDirectorView ? 'Modo Operador' : 'Modo Diretoria'}
-              </span>
+              <span>{isDirectorView ? 'Modo Operador' : 'Modo Diretoria'}</span>
             </button>
           )}
         </div>
@@ -125,7 +123,7 @@ export function AdminLayout({
                   className="px-2 py-1.5 rounded-lg bg-red-600/20 text-red-400 border border-red-500/30 text-[10px] font-bold uppercase flex items-center gap-1"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  <span className="hidden xs:inline">App</span>
+                  <span>App</span>
                 </button>
               )}
 
@@ -348,30 +346,16 @@ export function AdminLayout({
         </button>
       </nav>
 
-      {/* POP-UP MOBILE DE CONTA, TROCA DE PERFIL E LOGOUT (COM ARRASTO PARA FECHAR) */}
+      {/* POP-UP MOBILE DE CONTA, TROCA DE PERFIL E LOGOUT */}
       {isMobileAccountSheetOpen && (
         <div
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4"
           onClick={(e) => {
             if (e.target === e.currentTarget) setIsMobileAccountSheetOpen(false);
           }}
         >
-          <div
-            style={sheetStyle}
-            className="w-full max-w-md bg-[#12151E] border-t sm:border border-white/15 rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden safe-area-bottom"
-          >
-            {/* Área de arrasto para fechar no celular */}
-            <div
-              {...dragHandleProps}
-              className="pt-3 pb-3 px-5 border-b border-white/10 bg-[#161924] cursor-grab active:cursor-grabbing select-none"
-            >
-              <div className="sm:hidden flex flex-col items-center justify-center mb-2">
-                <div className="w-12 h-1.5 rounded-full bg-white/25" />
-                <span className="text-[9px] font-mono uppercase tracking-widest text-slate-500 mt-1">
-                  Arraste para baixo para fechar
-                </span>
-              </div>
-
+          <div className="w-full max-w-md max-h-[90dvh] bg-[#12151E] border-t sm:border border-white/15 rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden safe-area-bottom">
+            <div className="pt-3 pb-3 px-5 border-b border-white/10 bg-[#161924] shrink-0">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-10 h-10 rounded-xl bg-red-600/15 border border-red-500/30 flex items-center justify-center text-red-400 shrink-0">
@@ -388,14 +372,14 @@ export function AdminLayout({
                 <button
                   type="button"
                   onClick={() => setIsMobileAccountSheetOpen(false)}
-                  className="p-2 rounded-xl text-slate-400 hover:text-white bg-white/5"
+                  className="p-2 rounded-xl text-slate-300 hover:text-white bg-white/10"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
 
-            <div className="p-5 space-y-3">
+            <div className="flex-1 min-h-0 overflow-y-auto mobile-modal-scroll p-5 space-y-3">
               <div className="flex items-center justify-between p-3 rounded-xl bg-[#0D0F14] border border-white/5 text-xs">
                 <span className="text-slate-400">Perfil Ativo no Aplicativo:</span>
                 <span

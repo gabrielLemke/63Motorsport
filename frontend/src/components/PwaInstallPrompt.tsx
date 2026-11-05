@@ -69,7 +69,7 @@ export function PwaInstallPrompt({
     if (!standalone && isMobileViewport && !dismissedSession) {
       const timer = setTimeout(() => {
         setShowAutoPrompt(true);
-      }, 600);
+      }, 800);
       return () => clearTimeout(timer);
     }
   }, []);
@@ -117,7 +117,7 @@ export function PwaInstallPrompt({
 
   const isVisible = (showAutoPrompt && !isStandalone) || forceOpenModal;
 
-  const { sheetStyle, dragHandleProps } = useMobileSheetDrag({
+  useMobileSheetDrag({
     isOpen: isVisible,
     onClose: handleDismiss
   });
@@ -147,31 +147,17 @@ export function PwaInstallPrompt({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-6 animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-6"
       onClick={(e) => {
         if (e.target === e.currentTarget) handleDismiss();
       }}
     >
-      <div
-        style={sheetStyle}
-        className="w-full max-w-md max-h-[90dvh] bg-[#11131A] border-t sm:border border-red-500/40 rounded-t-3xl sm:rounded-2xl shadow-[0_0_50px_rgba(239,68,68,0.25)] flex flex-col overflow-hidden relative safe-area-bottom"
-      >
+      <div className="w-full max-w-md max-h-[90dvh] bg-[#11131A] border-t sm:border border-red-500/40 rounded-t-3xl sm:rounded-2xl shadow-[0_0_50px_rgba(239,68,68,0.25)] flex flex-col overflow-hidden relative safe-area-bottom">
         {/* Top Accent Line */}
         <div className="h-1.5 w-full bg-gradient-to-r from-red-600 via-amber-500 to-red-600 shrink-0" />
 
-        {/* Mobile Drag-to-Close Handle + Header */}
-        <div
-          {...dragHandleProps}
-          className="pt-2.5 pb-3 px-4 sm:px-6 border-b border-white/10 bg-[#141720] shrink-0 cursor-grab active:cursor-grabbing select-none"
-        >
-          {/* Barra de arrasto mobile */}
-          <div className="sm:hidden flex flex-col items-center justify-center mb-2.5">
-            <div className="w-12 h-1.5 rounded-full bg-white/25" />
-            <span className="text-[9px] font-mono uppercase tracking-widest text-slate-500 mt-1">
-              Arraste para baixo para fechar
-            </span>
-          </div>
-
+        {/* Header */}
+        <div className="pt-3 pb-3 px-4 sm:px-6 border-b border-white/10 bg-[#141720] shrink-0">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
               <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#090A0D] border-2 border-red-500/50 flex flex-col items-center justify-center shadow-lg shrink-0 relative">
@@ -202,7 +188,7 @@ export function PwaInstallPrompt({
             <button
               type="button"
               onClick={handleDismiss}
-              className="p-2 rounded-xl text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 transition-colors shrink-0"
+              className="p-2 rounded-xl text-slate-300 hover:text-white bg-white/10 hover:bg-white/20 transition-colors shrink-0"
               aria-label="Fechar"
             >
               <X className="w-5 h-5" />
@@ -210,8 +196,8 @@ export function PwaInstallPrompt({
           </div>
         </div>
 
-        {/* Scrollable Content Body */}
-        <div className="flex-1 overflow-y-auto mobile-modal-scroll p-4 sm:p-6 space-y-4">
+        {/* Scrollable Content Body (min-h-0 garante o scroll nativo no iOS/Android) */}
+        <div className="flex-1 min-h-0 overflow-y-auto mobile-modal-scroll p-4 sm:p-6 space-y-4">
           {installedSuccess ? (
             <div className="p-4 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-center space-y-2">
               <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto" />
@@ -224,7 +210,6 @@ export function PwaInstallPrompt({
             </div>
           ) : (
             <>
-              {/* Recursos do App para Mecânicos, Operação e Clientes */}
               <div className="bg-[#171A24] border border-white/10 rounded-xl p-3.5 space-y-2 text-xs">
                 <div className="font-bold uppercase text-[11px] tracking-wider text-red-400 flex items-center gap-1.5">
                   <Smartphone className="w-3.5 h-3.5 shrink-0" />
@@ -246,7 +231,6 @@ export function PwaInstallPrompt({
                 </ul>
               </div>
 
-              {/* Guia Visual Específico se for iPhone (iOS) ou se o usuário clicou para ver instruções */}
               {(platform === 'ios' || showStepGuide) && (
                 <div className="bg-[#0D0F14] border border-amber-500/30 rounded-xl p-3.5 space-y-2.5">
                   {platform === 'ios' ? (
@@ -318,7 +302,6 @@ export function PwaInstallPrompt({
                 </div>
               )}
 
-              {/* Botões Principais de Ação */}
               <div className="space-y-2.5 pt-1">
                 {platform !== 'ios' && (
                   <button
@@ -351,9 +334,9 @@ export function PwaInstallPrompt({
                 <button
                   type="button"
                   onClick={handleDismiss}
-                  className="w-full py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400 hover:text-white transition-colors"
+                  className="w-full py-2.5 text-xs font-semibold uppercase tracking-wider text-slate-300 hover:text-white bg-white/5 rounded-xl transition-colors"
                 >
-                  Continuar navegando no site
+                  Fechar e Continuar no Site
                 </button>
               </div>
             </>

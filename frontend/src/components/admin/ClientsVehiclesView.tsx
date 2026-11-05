@@ -162,7 +162,7 @@ export function ClientsVehiclesView({ userRole, userName }: ClientsVehiclesViewP
     [dossiers, selectedDossierKey]
   );
 
-  const { sheetStyle: dossierSheetStyle, dragHandleProps: dossierDragProps } = useMobileSheetDrag({
+  useMobileSheetDrag({
     isOpen: Boolean(activeDossier),
     onClose: () => setSelectedDossierKey(null)
   });
@@ -430,22 +430,9 @@ export function ClientsVehiclesView({ userRole, userName }: ClientsVehiclesViewP
             if (e.target === e.currentTarget) setSelectedDossierKey(null);
           }}
         >
-          <div
-            style={dossierSheetStyle}
-            className="bg-[#0F1117] border-t sm:border border-white/15 rounded-t-3xl sm:rounded-2xl w-full max-w-5xl max-h-[94dvh] sm:max-h-[92dvh] flex flex-col shadow-2xl overflow-hidden safe-area-bottom"
-          >
-            {/* Header do Prontuário (Com Barra de Arrasto Mobile para Fechar) */}
-            <div
-              {...dossierDragProps}
-              className="pt-2.5 pb-3 px-4 sm:px-6 border-b border-white/10 bg-[#141720] shrink-0 cursor-grab active:cursor-grabbing select-none"
-            >
-              <div className="sm:hidden flex flex-col items-center justify-center mb-2">
-                <div className="w-12 h-1.5 rounded-full bg-white/25" />
-                <span className="text-[9px] font-mono uppercase tracking-widest text-slate-500 mt-1">
-                  Arraste para baixo para fechar
-                </span>
-              </div>
-
+          <div className="bg-[#0F1117] border-t sm:border border-white/15 rounded-t-3xl sm:rounded-2xl w-full max-w-5xl max-h-[94dvh] sm:max-h-[92dvh] flex flex-col shadow-2xl overflow-hidden safe-area-bottom">
+            {/* Header do Prontuário */}
+            <div className="pt-3 pb-3 px-4 sm:px-6 border-b border-white/10 bg-[#141720] shrink-0">
               <div className="flex items-start sm:items-center justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
@@ -479,7 +466,7 @@ export function ClientsVehiclesView({ userRole, userName }: ClientsVehiclesViewP
                   <button
                     type="button"
                     onClick={() => setSelectedDossierKey(null)}
-                    className="p-2 rounded-xl text-slate-400 hover:text-white bg-white/5 hover:bg-white/10"
+                    className="p-2 rounded-xl text-slate-300 hover:text-white bg-white/10 hover:bg-white/20"
                   >
                     <X className="w-5 h-5" />
                   </button>
@@ -487,8 +474,8 @@ export function ClientsVehiclesView({ userRole, userName }: ClientsVehiclesViewP
               </div>
             </div>
 
-            {/* Corpo do Prontuário: Todas as Passagens do Início ao Fim */}
-            <div className="flex-1 overflow-y-auto mobile-modal-scroll p-3.5 sm:p-6 space-y-5 sm:space-y-6">
+            {/* Corpo do Prontuário (min-h-0 garante rolagem nativa no iOS e Android) */}
+            <div className="flex-1 min-h-0 overflow-y-auto mobile-modal-scroll p-3.5 sm:p-6 space-y-5 sm:space-y-6">
               {activeDossier.orders.map((visit, vIdx) => (
                 <div
                   key={visit.id}

@@ -24,7 +24,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({ isOpen, onClose, initial
   const [success, setSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const { sheetStyle, dragHandleProps } = useMobileSheetDrag({
+  useMobileSheetDrag({
     isOpen,
     onClose
   });
@@ -54,27 +54,14 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({ isOpen, onClose, initial
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/85 backdrop-blur-md"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div
-        style={sheetStyle}
-        className="relative w-full max-w-lg max-h-[92dvh] bg-[#12141A] border-t sm:border border-zinc-700/80 rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden text-left safe-area-bottom"
-      >
-        {/* Cabeçalho com barra de arrasto no celular */}
-        <div
-          {...dragHandleProps}
-          className="pt-3 pb-3.5 px-5 sm:px-7 border-b border-white/10 bg-[#161922] shrink-0 cursor-grab active:cursor-grabbing select-none"
-        >
-          <div className="sm:hidden flex flex-col items-center justify-center mb-2">
-            <div className="w-12 h-1.5 rounded-full bg-white/25" />
-            <span className="text-[9px] font-mono uppercase tracking-widest text-slate-500 mt-1">
-              Arraste para baixo para fechar
-            </span>
-          </div>
-
+      <div className="relative w-full max-w-lg max-h-[92dvh] bg-[#12141A] border-t sm:border border-zinc-700/80 rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden text-left safe-area-bottom">
+        {/* Cabeçalho */}
+        <div className="pt-3.5 pb-3.5 px-5 sm:px-7 border-b border-white/10 bg-[#161922] shrink-0">
           <div className="flex items-start justify-between gap-3">
             <div>
               <span className="text-[11px] sm:text-xs text-red-500 font-bold uppercase tracking-wider">
@@ -88,7 +75,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({ isOpen, onClose, initial
             <button
               type="button"
               onClick={onClose}
-              className="p-2 text-zinc-400 hover:text-white rounded-xl bg-white/5 hover:bg-zinc-800 transition-colors cursor-pointer shrink-0"
+              className="p-2 text-zinc-300 hover:text-white rounded-xl bg-white/10 hover:bg-zinc-800 transition-colors cursor-pointer shrink-0"
               aria-label="Fechar"
             >
               <X className="w-5 h-5" />
@@ -96,8 +83,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({ isOpen, onClose, initial
           </div>
         </div>
 
-        {/* Corpo com scroll suave no mobile */}
-        <div className="flex-1 overflow-y-auto mobile-modal-scroll p-5 sm:p-7">
+        {/* Corpo com scroll nativo suave (min-h-0 garante rolagem no flex container) */}
+        <div className="flex-1 min-h-0 overflow-y-auto mobile-modal-scroll p-5 sm:p-7">
           {success ? (
             <div className="py-8 text-center space-y-4">
               <CheckCircle2 className="w-14 h-14 sm:w-16 sm:h-16 text-emerald-500 mx-auto animate-bounce" />

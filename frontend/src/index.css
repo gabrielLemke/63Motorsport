@@ -11,19 +11,15 @@ html, body {
   background-color: #090A0D;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden;
+  overflow-x: clip;
   width: 100%;
-  max-width: 100vw;
-  min-height: 100dvh;
-  overscroll-behavior-y: none;
-  -webkit-tap-highlight-color: transparent;
+  min-height: 100%;
 }
 
-/* Scroll fluido para pop-ups e modais no iOS e Android sem travar o toque */
+/* Scroll nativo fluido para pop-ups e modais no iOS e Android */
 .mobile-modal-scroll {
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
-  touch-action: pan-y;
+  overscroll-behavior-y: contain;
 }
 
 /* Safe area inferior para iPhones com barra Home e Androids em tela cheia */
@@ -31,7 +27,7 @@ html, body {
   padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
 }
 
-/* Evita que o Safari no iPhone dê zoom automático e desconfigure o dimensionamento da tela ao focar em campos */
+/* Evita que o Safari no iPhone dê zoom automático ao focar em campos */
 @media screen and (max-width: 768px) {
   input,
   select,

@@ -650,7 +650,7 @@ export function OrderOperationalModal({
   ).length;
   const executedItemsCount = items.filter((i) => i.executed).length;
 
-  const { sheetStyle, dragHandleProps } = useMobileSheetDrag({
+  useMobileSheetDrag({
     isOpen: true,
     onClose
   });
@@ -662,22 +662,9 @@ export function OrderOperationalModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div
-        style={sheetStyle}
-        className="bg-[#0F1117] border-t sm:border border-white/15 rounded-t-3xl sm:rounded-2xl w-full max-w-6xl max-h-[94dvh] sm:max-h-[92dvh] flex flex-col shadow-2xl overflow-hidden safe-area-bottom"
-      >
-        {/* Top Header (Com Barra de Arrasto Mobile para Fechar) */}
-        <div
-          {...dragHandleProps}
-          className="pt-2.5 pb-3 px-3.5 sm:px-6 border-b border-white/10 bg-[#141720] shrink-0 cursor-grab active:cursor-grabbing select-none"
-        >
-          {/* Barra visual de arrasto para baixo no celular */}
-          <div className="sm:hidden flex flex-col items-center justify-center mb-2">
-            <div className="w-12 h-1.5 rounded-full bg-white/25" />
-            <span className="text-[9px] font-mono uppercase tracking-widest text-slate-500 mt-1">
-              Arraste para baixo para fechar
-            </span>
-          </div>
+      <div className="bg-[#0F1117] border-t sm:border border-white/15 rounded-t-3xl sm:rounded-2xl w-full max-w-6xl max-h-[94dvh] sm:max-h-[92dvh] flex flex-col shadow-2xl overflow-hidden safe-area-bottom">
+        {/* Top Header */}
+        <div className="pt-3 pb-3 px-3.5 sm:px-6 border-b border-white/10 bg-[#141720] shrink-0">
 
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5">
             <div className="flex items-start sm:items-center justify-between gap-2 min-w-0">
@@ -823,8 +810,8 @@ export function OrderOperationalModal({
           </button>
         </div>
 
-        {/* Body Content (Com Scroll Fluido Mobile e Overscroll Contain) */}
-        <div className="flex-1 overflow-y-auto mobile-modal-scroll p-3.5 sm:p-6 space-y-5 sm:space-y-6">
+        {/* Body Content (min-h-0 garante rolagem nativa fluida no iOS e Android) */}
+        <div className="flex-1 min-h-0 overflow-y-auto mobile-modal-scroll p-3.5 sm:p-6 space-y-5 sm:space-y-6">
           {/* =========================================================
               ABA 1: CONTROLE DE PÁTIO, INÍCIO/FIM & COISAS FEITAS
           ========================================================= */}

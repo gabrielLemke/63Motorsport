@@ -225,7 +225,7 @@ export function OrderFormModal({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { sheetStyle, dragHandleProps } = useMobileSheetDrag({
+  useMobileSheetDrag({
     isOpen,
     onClose
   });
@@ -407,22 +407,9 @@ export function OrderFormModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div
-        style={sheetStyle}
-        className="bg-[#12141A] border-t sm:border border-white/15 rounded-t-3xl sm:rounded-2xl w-full max-w-4xl max-h-[94dvh] sm:max-h-[92dvh] flex flex-col shadow-2xl overflow-hidden safe-area-bottom"
-      >
-        {/* Modal Header (Com Barra de Arrasto Mobile para Fechar) */}
-        <div
-          {...dragHandleProps}
-          className="pt-2.5 pb-3 px-4 sm:p-5 border-b border-white/10 bg-[#161922] shrink-0 cursor-grab active:cursor-grabbing select-none"
-        >
-          <div className="sm:hidden flex flex-col items-center justify-center mb-2">
-            <div className="w-12 h-1.5 rounded-full bg-white/25" />
-            <span className="text-[9px] font-mono uppercase tracking-widest text-slate-500 mt-1">
-              Arraste para baixo para fechar
-            </span>
-          </div>
-
+      <div className="bg-[#12141A] border-t sm:border border-white/15 rounded-t-3xl sm:rounded-2xl w-full max-w-4xl max-h-[94dvh] sm:max-h-[92dvh] flex flex-col shadow-2xl overflow-hidden safe-area-bottom">
+        {/* Modal Header */}
+        <div className="pt-3 pb-3 px-4 sm:p-5 border-b border-white/10 bg-[#161922] shrink-0">
           <div className="flex items-start sm:items-center justify-between gap-3">
             <div className="flex items-start sm:items-center gap-3 min-w-0">
               <div className="p-2 rounded-xl bg-red-600/15 text-red-500 border border-red-500/30 shrink-0">
@@ -447,15 +434,15 @@ export function OrderFormModal({
             <button
               type="button"
               onClick={onClose}
-              className="p-2 rounded-xl text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 transition-colors shrink-0"
+              className="p-2 rounded-xl text-slate-300 hover:text-white bg-white/10 hover:bg-white/20 transition-colors shrink-0"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        {/* Modal Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto mobile-modal-scroll p-4 sm:p-6 space-y-5">
+        {/* Modal Body (min-h-0 garante o scroll nativo no iOS/Android) */}
+        <form onSubmit={handleSubmit} className="flex-1 min-h-0 overflow-y-auto mobile-modal-scroll p-4 sm:p-6 space-y-5">
           {/* BARRA DE PREENCHIMENTO EM 1 CLIQUE (CLIENTES RECORRENTES) */}
           {!initialOrder && existingOrders.length > 0 && (
             <div className="bg-emerald-950/20 border border-emerald-500/25 rounded-xl p-3.5 space-y-2">
