@@ -20,9 +20,23 @@ function getHeaders(extraHeaders?: Record<string, string>): Record<string, strin
   return headers;
 }
 
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit,
+  timeoutMs = 7000
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export const supabaseRest = {
   async select<T = any>(table: string, queryParams = 'select=*'): Promise<T[]> {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${queryParams}`, {
+    const res = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/${table}?${queryParams}`, {
       method: 'GET',
       headers: getHeaders()
     });
@@ -34,7 +48,7 @@ export const supabaseRest = {
   },
 
   async upsert<T = any>(table: string, rows: any | any[], onConflict = 'id'): Promise<T[]> {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?on_conflict=${onConflict}`, {
+    const res = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/${table}?on_conflict=${onConflict}`, {
       method: 'POST',
       headers: getHeaders({
         Prefer: 'return=representation,resolution=merge-duplicates'
@@ -49,7 +63,7 @@ export const supabaseRest = {
   },
 
   async update<T = any>(table: string, matchQuery: string, patch: any): Promise<T[]> {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${matchQuery}`, {
+    const res = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/${table}?${matchQuery}`, {
       method: 'PATCH',
       headers: getHeaders({
         Prefer: 'return=representation'
@@ -64,7 +78,7 @@ export const supabaseRest = {
   },
 
   async remove(table: string, matchQuery: string): Promise<boolean> {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${matchQuery}`, {
+    const res = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/${table}?${matchQuery}`, {
       method: 'DELETE',
       headers: getHeaders()
     });

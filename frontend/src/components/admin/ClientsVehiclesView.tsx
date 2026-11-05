@@ -56,8 +56,8 @@ interface VehicleDossier {
 }
 
 export function ClientsVehiclesView({ userRole, userName }: ClientsVehiclesViewProps) {
-  const [orders, setOrders] = useState<ServiceOrder[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [orders, setOrders] = useState<ServiceOrder[]>(() => serviceOrderApi.getCachedOrders());
+  const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Prontuário selecionado
@@ -69,20 +69,21 @@ export function ClientsVehiclesView({ userRole, userName }: ClientsVehiclesViewP
   );
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
 
-  const loadOrders = async () => {
-    setIsLoading(true);
+  const loadOrders = async (showSpinner = false) => {
+    if (showSpinner) setIsLoading(true);
     try {
       const data = await serviceOrderApi.listOrders();
       setOrders(data);
     } catch (err) {
       console.error('Erro ao carregar prontuários de clientes e veículos:', err);
     } finally {
-      setIsLoading(false);
+      if (showSpinner) setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    loadOrders();
+    setOrders(serviceOrderApi.getCachedOrders());
+    void loadOrders(false);
   }, []);
 
   // Agrupa todas as Ordens de Serviço por Veículo (Placa ou Modelo+Cliente) para formar o Prontuário Histórico
@@ -425,14 +426,14 @@ export function ClientsVehiclesView({ userRole, userName }: ClientsVehiclesViewP
       ========================================================= */}
       {activeDossier && (
         <div
-          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-6"
+          className="fixed inset-0 z-50 overflow-y-auto bg-black/85 p-2 sm:p-6 [-webkit-overflow-scrolling:touch]"
           onClick={(e) => {
             if (e.target === e.currentTarget) setSelectedDossierKey(null);
           }}
         >
-          <div className="bg-[#0F1117] border-t sm:border border-white/15 rounded-t-3xl sm:rounded-2xl w-full max-w-5xl max-h-[94dvh] sm:max-h-[92dvh] flex flex-col shadow-2xl overflow-hidden safe-area-bottom">
-            {/* Header do Prontuário */}
-            <div className="pt-3 pb-3 px-4 sm:px-6 border-b border-white/10 bg-[#141720] shrink-0">
+          <div className="bg-[#0F1117] border border-white/15 rounded-2xl w-full max-w-5xl mx-auto my-2 sm:my-6 shadow-2xl safe-area-bottom">
+            {/* Sticky Header do Prontuário */}
+            <div className="sticky top-0 z-20 rounded-t-2xl pt-3 pb-3 px-4 sm:px-6 border-b border-white/10 bg-[#141720] shadow-md">
               <div className="flex items-start sm:items-center justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
@@ -474,8 +475,8 @@ export function ClientsVehiclesView({ userRole, userName }: ClientsVehiclesViewP
               </div>
             </div>
 
-            {/* Corpo do Prontuário (min-h-0 garante rolagem nativa no iOS e Android) */}
-            <div className="flex-1 min-h-0 overflow-y-auto mobile-modal-scroll p-3.5 sm:p-6 space-y-5 sm:space-y-6">
+            {/* Corpo do Prontuário */}
+            <div className="p-3.5 sm:p-6 space-y-5 sm:space-y-6">
               {activeDossier.orders.map((visit, vIdx) => (
                 <div
                   key={visit.id}

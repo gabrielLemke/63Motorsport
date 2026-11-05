@@ -69,8 +69,8 @@ const PHASE_STEPS: Array<{ key: OperationalPhase; short: string; label: string; 
 ];
 
 export function WorkshopOperationsView({ userRole, userName }: WorkshopOperationsViewProps) {
-  const [orders, setOrders] = useState<ServiceOrder[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [orders, setOrders] = useState<ServiceOrder[]>(() => serviceOrderApi.getCachedOrders());
+  const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [phaseFilter, setPhaseFilter] = useState<'ALL' | 'ACTIVE' | OperationalPhase>('ALL');
 
@@ -82,20 +82,21 @@ export function WorkshopOperationsView({ userRole, userName }: WorkshopOperation
   const [isNewCheckinOpen, setIsNewCheckinOpen] = useState(false);
   const [pdfOrder, setPdfOrder] = useState<ServiceOrder | null>(null);
 
-  const loadOrders = async () => {
-    setIsLoading(true);
+  const loadOrders = async (showSpinner = false) => {
+    if (showSpinner) setIsLoading(true);
     try {
       const data = await serviceOrderApi.listOrders({ search: searchQuery });
       setOrders(data);
     } catch (err) {
       console.error('Erro ao carregar operação de pátio:', err);
     } finally {
-      setIsLoading(false);
+      if (showSpinner) setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    loadOrders();
+    setOrders(serviceOrderApi.getCachedOrders({ search: searchQuery }));
+    void loadOrders(false);
   }, [searchQuery]);
 
   const handleSaveOperationalChanges = async (
@@ -188,7 +189,7 @@ export function WorkshopOperationsView({ userRole, userName }: WorkshopOperation
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={loadOrders}
+            onClick={() => loadOrders(true)}
             className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider text-slate-300 bg-[#151820] border border-white/10 hover:text-white transition-colors"
           >
             <RefreshCw className="w-3.5 h-3.5 text-red-500" />

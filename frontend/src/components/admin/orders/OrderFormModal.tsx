@@ -402,14 +402,14 @@ export function OrderFormModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4"
+      className="fixed inset-0 z-50 overflow-y-auto bg-black/85 p-2 sm:p-4 [-webkit-overflow-scrolling:touch]"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="bg-[#12141A] border-t sm:border border-white/15 rounded-t-3xl sm:rounded-2xl w-full max-w-4xl max-h-[94dvh] sm:max-h-[92dvh] flex flex-col shadow-2xl overflow-hidden safe-area-bottom">
-        {/* Modal Header */}
-        <div className="pt-3 pb-3 px-4 sm:p-5 border-b border-white/10 bg-[#161922] shrink-0">
+      <div className="bg-[#12141A] border border-white/15 rounded-2xl w-full max-w-4xl mx-auto my-2 sm:my-6 shadow-2xl safe-area-bottom">
+        {/* Sticky Modal Header */}
+        <div className="sticky top-0 z-20 rounded-t-2xl pt-3 pb-3 px-4 sm:p-5 border-b border-white/10 bg-[#161922] shadow-md">
           <div className="flex items-start sm:items-center justify-between gap-3">
             <div className="flex items-start sm:items-center gap-3 min-w-0">
               <div className="p-2 rounded-xl bg-red-600/15 text-red-500 border border-red-500/30 shrink-0">
@@ -441,8 +441,8 @@ export function OrderFormModal({
           </div>
         </div>
 
-        {/* Modal Body (min-h-0 garante o scroll nativo no iOS/Android) */}
-        <form onSubmit={handleSubmit} className="flex-1 min-h-0 overflow-y-auto mobile-modal-scroll p-4 sm:p-6 space-y-5">
+        {/* Modal Body */}
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-5">
           {/* BARRA DE PREENCHIMENTO EM 1 CLIQUE (CLIENTES RECORRENTES) */}
           {!initialOrder && existingOrders.length > 0 && (
             <div className="bg-emerald-950/20 border border-emerald-500/25 rounded-xl p-3.5 space-y-2">

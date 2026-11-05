@@ -52,26 +52,12 @@ export function PwaInstallPrompt({
 }: PwaInstallPromptProps) {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(() => window.__deferredPwaPrompt || null);
   const [platform, setPlatform] = useState<DevicePlatform>('desktop');
-  const [isStandalone, setIsStandalone] = useState(false);
-  const [showAutoPrompt, setShowAutoPrompt] = useState(false);
   const [showStepGuide, setShowStepGuide] = useState(false);
   const [installedSuccess, setInstalledSuccess] = useState(false);
 
   useEffect(() => {
     const detected = detectPlatform();
-    const standalone = isRunningStandalone();
     setPlatform(detected);
-    setIsStandalone(standalone);
-
-    const dismissedSession = sessionStorage.getItem('63motorsport_pwa_prompt_dismissed');
-    const isMobileViewport = window.innerWidth <= 900 || detected === 'ios' || detected === 'android';
-
-    if (!standalone && isMobileViewport && !dismissedSession) {
-      const timer = setTimeout(() => {
-        setShowAutoPrompt(true);
-      }, 800);
-      return () => clearTimeout(timer);
-    }
   }, []);
 
   useEffect(() => {
@@ -92,7 +78,6 @@ export function PwaInstallPrompt({
       setDeferredPrompt(null);
       window.__deferredPwaPrompt = null;
       setTimeout(() => {
-        setShowAutoPrompt(false);
         if (onCloseForcedModal) onCloseForcedModal();
       }, 2200);
     };
@@ -110,12 +95,11 @@ export function PwaInstallPrompt({
 
   const handleDismiss = () => {
     sessionStorage.setItem('63motorsport_pwa_prompt_dismissed', '1');
-    setShowAutoPrompt(false);
     setShowStepGuide(false);
     if (onCloseForcedModal) onCloseForcedModal();
   };
 
-  const isVisible = (showAutoPrompt && !isStandalone) || forceOpenModal;
+  const isVisible = forceOpenModal;
 
   useMobileSheetDrag({
     isOpen: isVisible,
@@ -147,17 +131,17 @@ export function PwaInstallPrompt({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-6"
+      className="fixed inset-0 z-50 overflow-y-auto bg-black/85 p-3 sm:p-6 flex items-center justify-center [-webkit-overflow-scrolling:touch]"
       onClick={(e) => {
         if (e.target === e.currentTarget) handleDismiss();
       }}
     >
-      <div className="w-full max-w-md max-h-[90dvh] bg-[#11131A] border-t sm:border border-red-500/40 rounded-t-3xl sm:rounded-2xl shadow-[0_0_50px_rgba(239,68,68,0.25)] flex flex-col overflow-hidden relative safe-area-bottom">
+      <div className="w-full max-w-md my-auto bg-[#11131A] border border-red-500/40 rounded-2xl shadow-[0_0_50px_rgba(239,68,68,0.25)] relative safe-area-bottom">
         {/* Top Accent Line */}
-        <div className="h-1.5 w-full bg-gradient-to-r from-red-600 via-amber-500 to-red-600 shrink-0" />
+        <div className="h-1.5 w-full bg-gradient-to-r from-red-600 via-amber-500 to-red-600 rounded-t-2xl" />
 
         {/* Header */}
-        <div className="pt-3 pb-3 px-4 sm:px-6 border-b border-white/10 bg-[#141720] shrink-0">
+        <div className="pt-3 pb-3 px-4 sm:px-6 border-b border-white/10 bg-[#141720]">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
               <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#090A0D] border-2 border-red-500/50 flex flex-col items-center justify-center shadow-lg shrink-0 relative">
@@ -196,8 +180,8 @@ export function PwaInstallPrompt({
           </div>
         </div>
 
-        {/* Scrollable Content Body (min-h-0 garante o scroll nativo no iOS/Android) */}
-        <div className="flex-1 min-h-0 overflow-y-auto mobile-modal-scroll p-4 sm:p-6 space-y-4">
+        {/* Content Body */}
+        <div className="p-4 sm:p-6 space-y-4">
           {installedSuccess ? (
             <div className="p-4 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-center space-y-2">
               <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto" />

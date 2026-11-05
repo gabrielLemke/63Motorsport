@@ -693,13 +693,32 @@ function filterOrdersList(
 }
 
 export const serviceOrderApi = {
+  getCachedOrders(filter?: { status?: string; search?: string }): ServiceOrder[] {
+    return filterOrdersList(getLocalStore(), filter);
+  },
+
   async listOrders(filter?: { status?: string; search?: string }): Promise<ServiceOrder[]> {
+    const localOrders = getLocalStore();
+    const localById = new Map(localOrders.map((o) => [o.id, o]));
+
     // 1. Consulta diretamente o Supabase Cloud (PostgreSQL)
     try {
       const rows = await supabaseRest.select('service_orders', 'select=*&order=created_at.desc');
 
       if (rows && rows.length > 0) {
-        const mapped = rows.map(fromSupabaseRow);
+        const mapped = rows.map((row: any) => {
+          const remoteOrder = fromSupabaseRow(row);
+          const localOrder = localById.get(remoteOrder.id);
+          if (
+            localOrder &&
+            localOrder.updatedAt &&
+            remoteOrder.updatedAt &&
+            new Date(localOrder.updatedAt).getTime() > new Date(remoteOrder.updatedAt).getTime()
+          ) {
+            return localOrder;
+          }
+          return remoteOrder;
+        });
         saveLocalStore(mapped);
         return filterOrdersList(mapped, filter);
       }
@@ -720,7 +739,7 @@ export const serviceOrderApi = {
     }
 
     // 2. Fallback resiliente caso o celular esteja sem internet no galpão
-    return filterOrdersList(getLocalStore(), filter);
+    return filterOrdersList(localOrders, filter);
   },
 
   async getOrder(id: string): Promise<ServiceOrder | null> {
@@ -824,18 +843,15 @@ export const serviceOrderApi = {
       quoteId: data.quoteId
     });
 
-    // Salva no cache local imediatamente
+    // Salva no cache local imediatamente (resposta instantânea 0ms na tela)
     saveLocalStore([newOrder, ...list.filter((o) => o.id !== newOrder.id)]);
 
-    // Persiste em tempo real no Supabase Cloud
-    try {
-      const savedRows = await supabaseRest.upsert('service_orders', toSupabaseRow(newOrder), 'id');
-      if (savedRows && savedRows.length > 0) {
-        return fromSupabaseRow(savedRows[0]);
-      }
-    } catch (err) {
-      console.warn('Falha ao sincronizar nova OS no Supabase, mantida no cache local:', err);
-    }
+    // Sincroniza em background no Supabase Cloud sem travar a interface do celular
+    void supabaseRest
+      .upsert('service_orders', toSupabaseRow(newOrder), 'id')
+      .catch((err) => {
+        console.warn('Falha ao sincronizar nova OS no Supabase, mantida no cache local:', err);
+      });
 
     return newOrder;
   },
@@ -871,16 +887,15 @@ export const serviceOrderApi = {
       updatedAt: new Date().toISOString()
     });
 
+    // Atualiza imediatamente o armazenamento local para resposta instantânea no toque
     saveLocalStore(list.map((o) => (o.id === id ? updated : o)));
 
-    try {
-      const savedRows = await supabaseRest.upsert('service_orders', toSupabaseRow(updated), 'id');
-      if (savedRows && savedRows.length > 0) {
-        return fromSupabaseRow(savedRows[0]);
-      }
-    } catch (err) {
-      console.warn('Falha ao atualizar OS no Supabase, mantida no cache local:', err);
-    }
+    // Sincroniza em background com o Supabase sem bloquear o clique do operador
+    void supabaseRest
+      .upsert('service_orders', toSupabaseRow(updated), 'id')
+      .catch((err) => {
+        console.warn('Falha ao atualizar OS no Supabase, mantida no cache local:', err);
+      });
 
     return updated;
   },

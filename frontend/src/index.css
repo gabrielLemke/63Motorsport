@@ -11,15 +11,14 @@ html, body {
   background-color: #090A0D;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow-x: clip;
   width: 100%;
   min-height: 100%;
+  touch-action: manipulation;
 }
 
 /* Scroll nativo fluido para pop-ups e modais no iOS e Android */
 .mobile-modal-scroll {
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: contain;
 }
 
 /* Safe area inferior para iPhones com barra Home e Androids em tela cheia */

@@ -54,14 +54,14 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({ isOpen, onClose, initial
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/85 backdrop-blur-md"
+      className="fixed inset-0 z-50 overflow-y-auto bg-black/85 p-3 sm:p-4 flex items-center justify-center [-webkit-overflow-scrolling:touch]"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="relative w-full max-w-lg max-h-[92dvh] bg-[#12141A] border-t sm:border border-zinc-700/80 rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden text-left safe-area-bottom">
+      <div className="relative w-full max-w-lg my-auto bg-[#12141A] border border-zinc-700/80 rounded-2xl shadow-2xl text-left safe-area-bottom">
         {/* Cabeçalho */}
-        <div className="pt-3.5 pb-3.5 px-5 sm:px-7 border-b border-white/10 bg-[#161922] shrink-0">
+        <div className="rounded-t-2xl pt-3.5 pb-3.5 px-5 sm:px-7 border-b border-white/10 bg-[#161922]">
           <div className="flex items-start justify-between gap-3">
             <div>
               <span className="text-[11px] sm:text-xs text-red-500 font-bold uppercase tracking-wider">
@@ -83,8 +83,8 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({ isOpen, onClose, initial
           </div>
         </div>
 
-        {/* Corpo com scroll nativo suave (min-h-0 garante rolagem no flex container) */}
-        <div className="flex-1 min-h-0 overflow-y-auto mobile-modal-scroll p-5 sm:p-7">
+        {/* Corpo */}
+        <div className="p-5 sm:p-7">
           {success ? (
             <div className="py-8 text-center space-y-4">
               <CheckCircle2 className="w-14 h-14 sm:w-16 sm:h-16 text-emerald-500 mx-auto animate-bounce" />

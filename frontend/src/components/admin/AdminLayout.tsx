@@ -349,13 +349,13 @@ export function AdminLayout({
       {/* POP-UP MOBILE DE CONTA, TROCA DE PERFIL E LOGOUT */}
       {isMobileAccountSheetOpen && (
         <div
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4"
+          className="fixed inset-0 z-50 overflow-y-auto bg-black/85 p-3 sm:p-4 flex items-end sm:items-center justify-center [-webkit-overflow-scrolling:touch]"
           onClick={(e) => {
             if (e.target === e.currentTarget) setIsMobileAccountSheetOpen(false);
           }}
         >
-          <div className="w-full max-w-md max-h-[90dvh] bg-[#12151E] border-t sm:border border-white/15 rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden safe-area-bottom">
-            <div className="pt-3 pb-3 px-5 border-b border-white/10 bg-[#161924] shrink-0">
+          <div className="w-full max-w-md my-auto sm:my-auto bg-[#12151E] border border-white/15 rounded-2xl shadow-2xl safe-area-bottom">
+            <div className="rounded-t-2xl pt-3 pb-3 px-5 border-b border-white/10 bg-[#161924]">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-10 h-10 rounded-xl bg-red-600/15 border border-red-500/30 flex items-center justify-center text-red-400 shrink-0">
@@ -379,7 +379,7 @@ export function AdminLayout({
               </div>
             </div>
 
-            <div className="flex-1 min-h-0 overflow-y-auto mobile-modal-scroll p-5 space-y-3">
+            <div className="p-5 space-y-3">
               <div className="flex items-center justify-between p-3 rounded-xl bg-[#0D0F14] border border-white/5 text-xs">
                 <span className="text-slate-400">Perfil Ativo no Aplicativo:</span>
                 <span
